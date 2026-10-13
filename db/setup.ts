@@ -129,6 +129,20 @@ const devPlans = [
   ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Jordan's leave and run two team meetings", 60, "on_track"],
 ] as const;
 
+// [person, career goal, note]; goals must be one of CAREER_GOALS in agent/lib/career-goals.ts.
+const careerGoals = [
+  ["priya-nair", "Principal SA", "Wants to stay hands-on and lead strategic FSI accounts."],
+  ["tom-becker", "Senior SA", ""],
+  ["aiko-tanaka", "Field CTO", "Prefers the technical track over people management."],
+  ["liam-oconnor", "Product Manager", "Interested in a move to product in 18-24 months."],
+  ["sofia-rossi", "Principal SA", ""],
+  ["ravi-menon", "Principal SA", ""],
+  ["hannah-kim", "Senior SA", ""],
+  ["jack-wilson", "Developer Relations", "Enjoys meetups and content; exploring a DevRel path."],
+  ["mei-chen", "Senior SA", ""],
+  ["daniel-okafor", "Manager", "Succession candidate for the SA Manager role."],
+] as const;
+
 // [id, account, AE, SA, sales stage 1-5, ACV, close quarter, next step, next step age (days), presales stage, forecast]
 // D-1003 (Commit, no tech win) and D-1006 (tech win, only Upside) are deliberately out of line.
 const deals = [
@@ -175,14 +189,26 @@ const candidates = [
   ["Leila Haddad", "Platform architect at a bank", "Security & compliance, FSI", "engaged", -14, "Referral (Priya)", "Would strengthen the FSI bench."],
 ] as const;
 
+async function seedCareerGoals() {
+  for (const [personId, goal, note] of careerGoals) {
+    await sql`insert into career_goals ${sql({ person_id: personId, goal, note, updated_by: personId })}`;
+  }
+}
+
 async function main() {
   await sql.unsafe(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
 
   if (reset) {
-    await sql`truncate digests, deal_updates, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
+      // Tables added after the first seed get their sample rows without wiping anything.
+      const [{ goals }] = await sql`select count(*)::int as goals from career_goals`;
+      if (goals === 0) {
+        await seedCareerGoals();
+        console.log("Added sample career goals.");
+      }
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
@@ -215,6 +241,7 @@ async function main() {
   for (const [personId, goal, target, next, due, status] of devPlans) {
     await sql`insert into dev_plans ${sql({ person_id: personId, goal, target_level: target, next_step: next, due_on: day(due), status })}`;
   }
+  await seedCareerGoals();
   for (const [id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast] of deals) {
     await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: quarter, next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })}`;
   }

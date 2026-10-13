@@ -1,13 +1,13 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { actorFromAuth, isManager } from "../lib/actor";
-import { findPerson, listAchievements, listDevPlans, listRetentionRisks, skillsMatrix } from "../lib/data";
+import { findPerson, listAchievements, listCareerGoals, listDevPlans, listRetentionRisks, skillsMatrix } from "../lib/data";
 import { skillLevelName } from "../lib/skill-levels";
 
 export default defineTool({
   description:
     "Get one person's profile: skills matrix entries, and (if the user may see them) their achievements from the last 12 months, " +
-    "development plan and, for managers only, retention risk. ICs can see a colleague's skills but not their achievements, plan or risk.",
+    "career goal, development plan and, for managers only, retention risk. ICs can see a colleague's skills but not their achievements, plan or risk.",
   inputSchema: z.object({
     person: z.string().min(1).describe("Person id (e.g. 'priya-nair') or name"),
   }),
@@ -26,11 +26,12 @@ export default defineTool({
     const self = actor.kind === "user" && actor.personId === found.id;
     if (!self && !isManager(actor)) {
       // Deliberately partial: skills are team-visible, the rest is private.
-      return { person: found, skills, private: "Achievements, development plan and retention risk are visible only to this person and their manager." };
+      return { person: found, skills, private: "Achievements, career goal, development plan and retention risk are visible only to this person and their manager." };
     }
 
-    const [achievements, plans, risks] = await Promise.all([
+    const [achievements, goals, plans, risks] = await Promise.all([
       listAchievements(actor, { personId: found.id }),
+      listCareerGoals(actor),
       listDevPlans(actor),
       isManager(actor) ? listRetentionRisks(actor) : Promise.resolve([]),
     ]);
@@ -38,6 +39,7 @@ export default defineTool({
       person: found,
       skills,
       achievements: achievements.map(({ occurred_on, category, title, impact }) => ({ occurred_on, category, title, impact })),
+      careerGoal: goals.find((g) => g.person_id === found.id) ?? null,
       devPlan: plans.find((p) => p.person_id === found.id) ?? null,
       retentionRisk: risks.find((r) => r.person_id === found.id) ?? undefined,
     };

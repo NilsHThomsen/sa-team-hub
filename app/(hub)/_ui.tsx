@@ -98,8 +98,12 @@ export function Table({ head, children }: { readonly head: readonly string[]; re
   );
 }
 
-export function Td({ children, className }: { readonly children: ReactNode; readonly className?: string }) {
-  return <td className={cn("px-3 py-2 align-top", className)}>{children}</td>;
+export function Td({ children, className, colSpan }: { readonly children?: ReactNode; readonly className?: string; readonly colSpan?: number }) {
+  return (
+    <td className={cn("px-3 py-2 align-top", className)} colSpan={colSpan}>
+      {children}
+    </td>
+  );
 }
 
 export function ManagerOnly() {

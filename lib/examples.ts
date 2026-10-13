@@ -9,6 +9,7 @@ export function examplePrompts(role: Role): string[] {
         "Update Dept. of Transport: panel submission is in, shortlist decision due 7 Nov.",
         "Where are our biggest skills gaps for next quarter, and who is closest to closing them?",
         "Log a win for Hannah Kim: she ran the Kestrel Insurance AI workshop yesterday with 12 attendees.",
+        "Who on the team is aiming for a manager role, and do their dev plans support it?",
         "Draft a promotion case for Priya Nair to Principal SA.",
         "Mei Chen accepted the counter-offer. Lower her retention risk to medium.",
       ]
@@ -17,6 +18,7 @@ export function examplePrompts(role: Role): string[] {
         "Update Aurora Logistics: POC success criteria signed off, so the technical win is secured. Next step is the commercial proposal with Tama on Friday.",
         "What skills should I focus on next quarter?",
         "How is my development plan tracking?",
+        "Change my career goal to Field CTO: I want to stay technical but work with execs.",
         "What is Tom Becker's retention risk?",
       ];
 }

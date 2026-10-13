@@ -1,35 +1,81 @@
-import { listDevPlans, listPeople } from "@/agent/lib/data";
+import { CAREER_GOALS } from "@/agent/lib/career-goals";
+import { type CareerGoalRow, type DevPlan, listCareerGoals, listDevPlans, listPeople } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
-import { PageHeader, Pill, Table, Td } from "../_ui";
+import { PageHeader, Pill, Section, Table, Td } from "../_ui";
+import { CareerGoalPicker } from "./_career-goal-picker";
+
+const NOT_SET = "Not set";
 
 export default async function DevPlansPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
-  const [all, people, selected] = await Promise.all([listDevPlans(actor), listPeople(), selectedPeople(searchParams)]);
-  const plans = byPeople(all, selected, (p) => p.person_id);
+  const manager = viewer.role === "manager";
+  const [allPlans, allGoals, people, selected] = await Promise.all([listDevPlans(actor), listCareerGoals(actor), listPeople(), selectedPeople(searchParams)]);
+  const plans = byPeople(allPlans, selected, (p) => p.person_id);
+  const goals = byPeople(allGoals, selected, (g) => g.person_id);
+
+  // One heading per career goal, in the order of CAREER_GOALS, with "Not set" last.
+  const groups = [...CAREER_GOALS, NOT_SET]
+    .map((heading) => ({ heading, people: goals.filter((g) => (g.goal ?? NOT_SET) === heading) }))
+    .filter((group) => group.people.length > 0);
 
   return (
     <>
       <PageHeader
-        subtitle={viewer.role === "manager" ? "Career development plans for the team, overdue first." : "Your career development plan."}
+        subtitle={manager ? "Career goals and development plans for the team. Change a goal from the dropdown." : "Your career goal and development plan. Change your goal from the dropdown."}
         title="Development Plans"
-        actions={viewer.role === "manager" ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
+        actions={manager ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
       />
-      <Table head={["Person", "Goal", "Target", "Next step", "Due", "Status"]}>
-        {plans.map((p) => (
-          <tr key={p.id}>
-            <Td className="whitespace-nowrap">{p.person_name}</Td>
-            <Td>{p.goal}</Td>
-            <Td>{p.target_level}</Td>
-            <Td>{p.next_step}</Td>
-            <Td className="whitespace-nowrap text-muted-foreground">{p.due_on}</Td>
-            <Td>
-              <Pill value={p.overdue ? "overdue" : p.status} />
-            </Td>
-          </tr>
-        ))}
-      </Table>
+      {groups.map(({ heading, people: members }) => (
+        <Section key={heading} note={`${members.length} ${members.length === 1 ? "person" : "people"}`} title={heading}>
+          <Table head={["Person", "Career goal", "Plan", "Target", "Next step", "Due", "Status"]}>
+            {members.map((g) => (
+              <PlanRows goal={g} key={g.person_id} plans={plans.filter((p) => p.person_id === g.person_id)} />
+            ))}
+          </Table>
+        </Section>
+      ))}
+      {groups.length === 0 ? <p className="text-muted-foreground text-sm">No one matches the filter.</p> : null}
     </>
   );
+}
+
+function PlanRows({ goal, plans }: { readonly goal: CareerGoalRow; readonly plans: readonly DevPlan[] }) {
+  const who = (
+    <>
+      <Td className="whitespace-nowrap">{goal.person_name}</Td>
+      <Td>
+        <CareerGoalPicker goal={goal.goal} personId={goal.person_id} personName={goal.person_name} />
+        {goal.note ? <div className="mt-1 max-w-56 text-muted-foreground text-xs">{goal.note}</div> : null}
+        {goal.updated_by_name ? (
+          <div className="mt-1 text-muted-foreground text-xs">
+            Set by {goal.updated_by_name}, {goal.updated_at}
+          </div>
+        ) : null}
+      </Td>
+    </>
+  );
+  if (plans.length === 0) {
+    return (
+      <tr>
+        {who}
+        <Td className="text-muted-foreground" colSpan={5}>
+          No development plan yet.
+        </Td>
+      </tr>
+    );
+  }
+  return plans.map((p, i) => (
+    <tr key={p.id}>
+      {i === 0 ? who : <><Td /><Td /></>}
+      <Td>{p.goal}</Td>
+      <Td>{p.target_level}</Td>
+      <Td>{p.next_step}</Td>
+      <Td className="whitespace-nowrap text-muted-foreground">{p.due_on}</Td>
+      <Td>
+        <Pill value={p.overdue ? "overdue" : p.status} />
+      </Td>
+    </tr>
+  ));
 }

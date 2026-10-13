@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { AccessDenied, type Actor, isManager, requireManager } from "./actor";
+import { type CareerGoal, isCareerGoal } from "./career-goals";
 import { skillLevelName } from "./skill-levels";
 
 // All reads and writes go through these functions, for the dashboard pages and
@@ -204,6 +205,51 @@ export async function listDevPlans(actor: Actor): Promise<DevPlan[]> {
     from dev_plans d join people p on p.id = d.person_id
     where (${personId}::text is null or d.person_id = ${personId})
     order by overdue desc, d.due_on`;
+}
+
+// ---------- Career goals ----------
+
+export interface CareerGoalRow {
+  person_id: string;
+  person_name: string;
+  goal: CareerGoal | null;
+  note: string;
+  updated_by_name: string | null;
+  updated_at: string | null;
+}
+
+/** One row per IC (or just yourself, for an IC), with their career goal if they have set one. */
+export async function listCareerGoals(actor: Actor): Promise<CareerGoalRow[]> {
+  const personId = actor.kind === "user" && actor.role === "ic" ? actor.personId : null;
+  return db()<CareerGoalRow[]>`
+    select p.id as person_id, p.name as person_name, g.goal, coalesce(g.note, '') as note,
+           u.name as updated_by_name, to_char(g.updated_at, 'YYYY-MM-DD') as updated_at
+    from people p
+    left join career_goals g on g.person_id = p.id
+    left join people u on u.id = g.updated_by
+    where p.role = 'ic' and (${personId}::text is null or p.id = ${personId})
+    order by p.name`;
+}
+
+/**
+ * Set a person's career goal. ICs can change only their own; managers can change anyone's.
+ * An upsert keyed on person_id, so replaying the same change leaves the same state.
+ */
+export async function setCareerGoal(actor: Actor, input: { personId: string; goal: string; note?: string }): Promise<CareerGoalRow> {
+  if (actor.kind !== "user") throw new AccessDenied("Career goals are changed by a signed-in person.");
+  assertCanSeePerson(actor, input.personId, "career goal");
+  if (!isCareerGoal(input.goal)) throw new Error(`"${input.goal}" is not a career goal option.`);
+  const [target] = await db()<{ role: string }[]>`select role from people where id = ${input.personId}`;
+  if (target?.role !== "ic") throw new Error("Career goals are tracked for SAs on the team.");
+  await db()`
+    insert into career_goals (person_id, goal, note, updated_by, updated_at)
+    values (${input.personId}, ${input.goal}, ${input.note ?? ""}, ${actor.personId}, now())
+    on conflict (person_id) do update
+      set goal = excluded.goal,
+          note = case when ${input.note === undefined} then career_goals.note else excluded.note end,
+          updated_by = excluded.updated_by, updated_at = now()`;
+  const [row] = (await listCareerGoals(actor)).filter((g) => g.person_id === input.personId);
+  return row;
 }
 
 // ---------- Deal coverage ----------

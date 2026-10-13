@@ -69,6 +69,17 @@ create table if not exists dev_plans (
   updated_at    timestamptz not null default now()
 );
 
+-- Where each person wants their career to go (Principal SA, Manager, Product
+-- Manager...). Dev Plans groups people under these headings. The person and
+-- managers can change it; the allowed values live in agent/lib/career-goals.ts.
+create table if not exists career_goals (
+  person_id     text primary key references people(id),
+  goal          text not null,
+  note          text not null default '',
+  updated_by    text not null,               -- person id of whoever last changed it
+  updated_at    timestamptz not null default now()
+);
+
 -- Deal coverage, from the plan's "SA Sales Activities": stage 2+ deals should
 -- have an SA, a current next step, and a presales stage that agrees with the
 -- sales forecast (a tech win should be in Commit or Strong Upside, and a Commit

@@ -16,6 +16,8 @@ import {
   saveDigest,
   updateDealNextStep,
   findDeal,
+  listCareerGoals,
+  setCareerGoal,
   setRetentionRisk,
   skillGaps,
 } from "../agent/lib/data";
@@ -171,5 +173,31 @@ describe("presales stage vs forecast", () => {
     const flagsFor = (id: string) => deals.find((d) => d.id === id)?.flags.join("; ") ?? "";
     assert.match(flagsFor("D-1006"), /tech win but forecast is only Upside/);
     assert.ok(summary.stage_misaligned >= 1);
+  });
+});
+
+describe("career goals", () => {
+  test("an IC sees and changes only their own goal", async () => {
+    const mine = await listCareerGoals(priya);
+    assert.deepEqual(mine.map((g) => g.person_id), ["priya-nair"]);
+    const row = await setCareerGoal(priya, { personId: "priya-nair", goal: "Field CTO" });
+    assert.equal(row.goal, "Field CTO");
+    assert.equal(row.note, "Wants to stay hands-on and lead strategic FSI accounts."); // note kept when not given
+    assert.equal(row.updated_by_name, "Priya Nair");
+    await assert.rejects(setCareerGoal(priya, { personId: "tom-becker", goal: "Manager" }), AccessDenied);
+    await setCareerGoal(priya, { personId: "priya-nair", goal: "Principal SA" });
+  });
+
+  test("a manager sees every SA and can change anyone's goal", async () => {
+    assert.equal((await listCareerGoals(manager)).length, 10);
+    const row = await setCareerGoal(manager, { personId: "tom-becker", goal: "Manager", note: "Asked about leading the Canberra pod." });
+    assert.equal(row.updated_by_name, "Jordan Hayes");
+    await setCareerGoal(manager, { personId: "tom-becker", goal: "Senior SA", note: "" });
+  });
+
+  test("only listed goals, only for SAs, only by a person", async () => {
+    await assert.rejects(setCareerGoal(manager, { personId: "tom-becker", goal: "Astronaut" }), /not a career goal/);
+    await assert.rejects(setCareerGoal(manager, { personId: "jordan-hayes", goal: "Manager" }), /tracked for SAs/);
+    await assert.rejects(setCareerGoal(app, { personId: "tom-becker", goal: "Manager" }), AccessDenied);
   });
 });
