@@ -2,7 +2,7 @@
 
 import type { UserContent } from "ai";
 import { useEveAgent } from "eve/react";
-import { AlertCircleIcon, BrainIcon, PlusIcon, SquareIcon } from "lucide-react";
+import { AlertCircleIcon, ArrowLeftIcon, BrainIcon, PlusIcon, SquareIcon } from "lucide-react";
 import { useState } from "react";
 import {
   Conversation,
@@ -25,15 +25,18 @@ import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
 import { WEB_CHAT_AGENT } from "@/app/eve-agent";
 
-const DEFAULT_AGENT_NAME = "deal-prep";
+const DEFAULT_AGENT_NAME = "SA Team Hub";
 const AGENT_NAME = WEB_CHAT_AGENT ?? DEFAULT_AGENT_NAME;
 
 export function AgentChat({
   sessionId,
   sessionless = false,
+  examples = [],
 }: {
   readonly sessionId?: string;
   readonly sessionless?: boolean;
+  /** Canned prompts for the empty state, chosen per role by the server page. */
+  readonly examples?: readonly string[];
 }) {
   const [cancellationError, setCancellationError] = useState<string>();
   const [hasInputText, setHasInputText] = useState(false);
@@ -139,9 +142,7 @@ export function AgentChat({
 
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      {showConversationLayout ? (
-        <ChatHeader canStartNewChat={activeSessionId !== undefined} />
-      ) : null}
+      <ChatHeader canStartNewChat={showConversationLayout && activeSessionId !== undefined} />
 
       {showConversationLayout ? (
         <Conversation
@@ -193,9 +194,27 @@ export function AgentChat({
         {showConversationLayout ? null : (
           <div className="flex flex-col items-center gap-3 text-center">
             <h1 className="font-medium text-5xl tracking-tighter">{AGENT_NAME}</h1>
+            <p className="text-muted-foreground text-sm">
+              Ask about the team, log a win, find skills gaps or draft a promotion case.
+            </p>
           </div>
         )}
         <div className="w-full">{composer}</div>
+        {showConversationLayout || examples.length === 0 ? null : (
+          <div className="flex w-full flex-col gap-2">
+            {examples.map((example) => (
+              <button
+                className="rounded-lg border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+                disabled={isResuming}
+                key={example}
+                onClick={() => void agent.send(example)}
+                type="button"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   );
@@ -254,6 +273,13 @@ function ChatHeader({ canStartNewChat }: { readonly canStartNewChat: boolean }) 
   return (
     <header className="pointer-events-none fixed top-0 right-0 left-0 z-20 h-14">
       <div className="relative mx-auto flex h-full w-full max-w-3xl items-center justify-center bg-background px-24">
+        <a
+          className="pointer-events-auto fixed top-4 left-6 flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
+          href="/"
+        >
+          <ArrowLeftIcon className="size-4" />
+          <span className="hidden sm:inline">Dashboard</span>
+        </a>
         <span className="truncate text-muted-foreground text-sm">{AGENT_NAME}</span>
         {canStartNewChat ? (
           <Button
