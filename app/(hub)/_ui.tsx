@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -25,9 +26,14 @@ export function Section({ title, children, note }: { readonly title: string; rea
   );
 }
 
-export function Stat({ label, value, tone = "neutral" }: { readonly label: string; readonly value: ReactNode; readonly tone?: "neutral" | "good" | "warn" | "bad" }) {
-  return (
-    <div className="rounded-xl border bg-card p-4">
+export function Stat({
+  label,
+  value,
+  tone = "neutral",
+  href,
+}: { readonly label: string; readonly value: ReactNode; readonly tone?: "neutral" | "good" | "warn" | "bad"; readonly href?: string }) {
+  const body = (
+    <>
       <div className="text-muted-foreground text-xs">{label}</div>
       <div
         className={cn(
@@ -39,7 +45,13 @@ export function Stat({ label, value, tone = "neutral" }: { readonly label: strin
       >
         {value}
       </div>
-    </div>
+    </>
+  );
+  if (!href) return <div className="rounded-xl border bg-card p-4">{body}</div>;
+  return (
+    <Link className="block rounded-xl border bg-card p-4 transition-colors hover:border-foreground/30 hover:bg-muted/40" href={href}>
+      {body}
+    </Link>
   );
 }
 

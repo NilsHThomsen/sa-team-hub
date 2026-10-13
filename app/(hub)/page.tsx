@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { isManager } from "@/agent/lib/actor";
 import { dealCoverage, latestDigest, listAchievements, listDevPlans, listPeople, listRetentionRisks, summarizeDeals } from "@/agent/lib/data";
-import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
+import { byPeople, PEOPLE_PARAM, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "./_person-filter";
 import { PageHeader, Pill, Section, Stat } from "./_ui";
@@ -28,6 +28,10 @@ export default async function HomePage({ searchParams }: { readonly searchParams
   const filteredDeals = byPeople(coverageAll.deals, selected, (d) => d.sa_id);
   const coverage = { deals: filteredDeals, summary: selected ? summarizeDeals(filteredDeals) : coverageAll.summary };
 
+  // Each number links to the tab behind it, carrying the person filter along.
+  const suffix = selected ? `?${PEOPLE_PARAM}=${encodeURIComponent([...selected].join(","))}` : "";
+  const to = (path: string) => `${path}${suffix}`;
+
   const overdue = plans.filter((p) => p.overdue).length;
   const flagged = coverage.deals.filter((d) => d.flags.length > 0).length;
 
@@ -41,18 +45,18 @@ export default async function HomePage({ searchParams }: { readonly searchParams
 
       {manager ? (
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <Stat label="Stage 2+ deals with an SA" tone={coverage.summary.stage2plus_covered_pct >= 90 ? "good" : "warn"} value={`${coverage.summary.stage2plus_covered_pct}%`} />
-          <Stat label="Presales vs forecast mismatches" tone={coverage.summary.stage_misaligned > 0 ? "warn" : "good"} value={coverage.summary.stage_misaligned} />
-          <Stat label="Stale next steps" tone={coverage.summary.stale_next_steps > 0 ? "warn" : "good"} value={coverage.summary.stale_next_steps} />
-          <Stat label="Overdue dev plans" tone={overdue > 0 ? "warn" : "good"} value={overdue} />
-          <Stat label="High retention risk" tone={risks.some((r) => r.risk === "high") ? "bad" : "good"} value={risks.filter((r) => r.risk === "high").length} />
-          <Stat label="Wins logged (90 days)" value={achievements.length} />
+          <Stat href={to("/deals")} label="Stage 2+ deals with an SA" tone={coverage.summary.stage2plus_covered_pct >= 90 ? "good" : "warn"} value={`${coverage.summary.stage2plus_covered_pct}%`} />
+          <Stat href={to("/deals")} label="Presales vs forecast mismatches" tone={coverage.summary.stage_misaligned > 0 ? "warn" : "good"} value={coverage.summary.stage_misaligned} />
+          <Stat href={to("/deals")} label="Stale next steps" tone={coverage.summary.stale_next_steps > 0 ? "warn" : "good"} value={coverage.summary.stale_next_steps} />
+          <Stat href={to("/dev-plans")} label="Overdue dev plans" tone={overdue > 0 ? "warn" : "good"} value={overdue} />
+          <Stat href={to("/talent")} label="High retention risk" tone={risks.some((r) => r.risk === "high") ? "bad" : "good"} value={risks.filter((r) => r.risk === "high").length} />
+          <Stat href={to("/achievements")} label="Wins logged (90 days)" value={achievements.length} />
         </div>
       ) : (
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3">
-          <Stat label="My wins (90 days)" value={achievements.length} />
-          <Stat label="Dev plan" value={plans[0] ? <Pill value={plans[0].overdue ? "overdue" : plans[0].status} /> : "None"} />
-          <Stat label="My deals needing attention" tone={flagged > 0 ? "warn" : "good"} value={flagged} />
+          <Stat href={to("/achievements")} label="My wins (90 days)" value={achievements.length} />
+          <Stat href={to("/dev-plans")} label="Dev plan" value={plans[0] ? <Pill value={plans[0].overdue ? "overdue" : plans[0].status} /> : "None"} />
+          <Stat href={to("/deals")} label="My deals needing attention" tone={flagged > 0 ? "warn" : "good"} value={flagged} />
         </div>
       )}
 
