@@ -29,11 +29,10 @@ export default async function DealsPage({ searchParams }: { readonly searchParam
         <Stat label="Next steps older than 14 days" tone={summary.stale_next_steps > 0 ? "warn" : "good"} value={summary.stale_next_steps} />
       </div>
       <Section title={!manager ? "Deals you cover" : selected ? "Open deals for the selected people" : "All open deals"}>
-        <Table head={["Account", "Stage", "Presales", "Forecast", "ACV", "Close", "AE", "SA", "Next step", "Flags"]}>
+        <Table head={["Account", "Presales Stage", "Forecast", "ACV", "Close", "AE", "SA", "Next step", "Flags"]}>
           {deals.map((d) => (
             <tr key={d.id}>
               <Td className="font-medium">{d.account}</Td>
-              <Td>{d.stage}</Td>
               <Td className={alignmentFlag(d.presales_stage, d.forecast) ? "whitespace-nowrap font-medium text-amber-700" : "whitespace-nowrap"}>
                 {LABEL[d.presales_stage]}
               </Td>
