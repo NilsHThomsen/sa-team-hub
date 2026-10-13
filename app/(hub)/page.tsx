@@ -1,21 +1,32 @@
 import Link from "next/link";
 import { isManager } from "@/agent/lib/actor";
-import { dealCoverage, latestDigest, listAchievements, listDevPlans, listRetentionRisks } from "@/agent/lib/data";
+import { dealCoverage, latestDigest, listAchievements, listDevPlans, listPeople, listRetentionRisks, summarizeDeals } from "@/agent/lib/data";
+import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
+import { PersonFilter } from "./_person-filter";
 import { PageHeader, Pill, Section, Stat } from "./_ui";
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
   const manager = isManager(actor);
 
   // Independent queries run in parallel.
-  const [coverage, plans, achievements, digest, risks] = await Promise.all([
+  const [coverageAll, plansAll, achievementsAll, digest, risksAll, people, filter] = await Promise.all([
     dealCoverage(actor),
     listDevPlans(actor),
     listAchievements(actor, { days: 90 }),
     latestDigest(),
     manager ? listRetentionRisks(actor) : Promise.resolve([]),
+    listPeople(),
+    selectedPeople(searchParams),
   ]);
+  // Managers can narrow the dashboard to one or more people; ICs already see only their own.
+  const selected = manager ? filter : null;
+  const plans = byPeople(plansAll, selected, (p) => p.person_id);
+  const achievements = byPeople(achievementsAll, selected, (a) => a.person_id);
+  const risks = byPeople(risksAll, selected, (r) => r.person_id);
+  const filteredDeals = byPeople(coverageAll.deals, selected, (d) => d.sa_id);
+  const coverage = { deals: filteredDeals, summary: selected ? summarizeDeals(filteredDeals) : coverageAll.summary };
 
   const overdue = plans.filter((p) => p.overdue).length;
   const flagged = coverage.deals.filter((d) => d.flags.length > 0).length;
@@ -25,6 +36,7 @@ export default async function HomePage() {
       <PageHeader
         title={`Hi ${viewer.name.split(" ")[0]}`}
         subtitle={manager ? "Team health across talent, skills and deal coverage." : "Your achievements, development plan and deals."}
+        actions={manager ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
       />
 
       {manager ? (

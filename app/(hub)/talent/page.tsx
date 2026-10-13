@@ -1,24 +1,37 @@
 import { isManager } from "@/agent/lib/actor";
-import { listCandidates, listPromotionCases, listRetentionRisks, listSuccession } from "@/agent/lib/data";
+import { listCandidates, listPeople, listPromotionCases, listRetentionRisks, listSuccession } from "@/agent/lib/data";
+import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
+import { PersonFilter } from "../_person-filter";
 import { ManagerOnly, PageHeader, Pill, Section, Table, Td } from "../_ui";
 
-export default async function TalentPage() {
+export default async function TalentPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { actor } = await requireActor();
   // The nav hides this page from ICs, but a typed URL lands here too, so check again.
   // The data functions would also throw AccessDenied: three layers, same rule.
   if (!isManager(actor)) return <ManagerOnly />;
 
-  const [risks, succession, candidates, cases] = await Promise.all([
+  const [allRisks, allSuccession, candidates, allCases, people, selected] = await Promise.all([
     listRetentionRisks(actor),
     listSuccession(actor),
     listCandidates(actor),
     listPromotionCases(actor),
+    listPeople(),
+    selectedPeople(searchParams),
   ]);
+  const risks = byPeople(allRisks, selected, (r) => r.person_id);
+  const cases = byPeople(allCases, selected, (c) => c.person_id);
+  // Succession names candidates as text (some are external), so match on name.
+  const idByName = new Map(people.map((p) => [p.name, p.id]));
+  const succession = byPeople(allSuccession, selected, (s) => idByName.get(s.candidate) ?? null);
 
   return (
     <>
-      <PageHeader subtitle="Manager eyes only: retention, promotion cases, succession and the warm bench." title="Talent" />
+      <PageHeader
+        actions={<PersonFilter people={people.filter((p) => p.role === "ic")} />}
+        subtitle="Manager eyes only: retention, promotion cases, succession and the warm bench."
+        title="Talent"
+      />
 
       <Section note="Changes through the agent require your approval" title="Retention risk">
         <Table head={["Person", "Risk", "Why", "Action plan", "Updated"]}>
@@ -77,7 +90,7 @@ export default async function TalentPage() {
           </Table>
         </Section>
 
-        <Section title="Warm bench">
+        <Section note={selected ? "External candidates, not filtered" : undefined} title="Warm bench">
           <Table head={["Candidate", "Focus", "Stage", "Last contact", "Notes"]}>
             {candidates.map((c) => (
               <tr key={c.id}>

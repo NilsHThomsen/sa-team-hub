@@ -2,6 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 import { actorFromAuth, isManager } from "../lib/actor";
 import { findPerson, listAchievements, listDevPlans, listRetentionRisks, skillsMatrix } from "../lib/data";
+import { skillLevelName } from "../lib/skill-levels";
 
 export default defineTool({
   description:
@@ -18,7 +19,9 @@ export default defineTool({
 
     const skills = (await skillsMatrix())
       .filter((s) => s.person_id === found.id)
-      .map(({ category, name, level, status, completed_on, due_on }) => ({ category, name, level, status, completed_on, due_on }));
+      .map(({ category, name, level, status, completed_on, due_on }) => ({
+        category, name, level: category === "product" ? skillLevelName(level) : undefined, status, completed_on, due_on,
+      }));
 
     const self = actor.kind === "user" && actor.personId === found.id;
     if (!self && !isManager(actor)) {

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { requireActor } from "@/lib/viewer";
 import { signOut } from "../login/actions";
+import { NavLinks } from "./_nav";
 
 export default async function HubLayout({ children }: { readonly children: ReactNode }) {
   const { viewer } = await requireActor();
@@ -22,13 +23,9 @@ export default async function HubLayout({ children }: { readonly children: React
           <Link className="font-semibold tracking-tight" href="/">
             SA Team Hub
           </Link>
-          <nav className="flex flex-wrap gap-4 text-sm">
-            {nav.map((item) => (
-              <Link className="text-muted-foreground hover:text-foreground" href={item.href} key={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <Suspense>
+            <NavLinks items={nav} />
+          </Suspense>
           <div className="ml-auto flex items-center gap-3 text-sm">
             <Link className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground" href="/s">
               Ask the agent

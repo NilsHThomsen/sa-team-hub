@@ -21,7 +21,8 @@ create table if not exists people (
 );
 
 -- Skills Matrix: product skills, certifications and enablement in one table so
--- the gap analysis can reason across all three. Product skills use level 0-4;
+-- the gap analysis can reason across all three. Product skills use level 0-4
+-- (None, Elevator, Present, Demo, Prove);
 -- certifications and enablement use status + dates.
 create table if not exists skills (
   person_id     text not null references people(id),

@@ -14,6 +14,6 @@ Use this when a manager asks whether someone is ready for promotion, or after `d
 
 Framework summary (the authoritative rules live in code, `agent/lib/framework.ts`):
 
-- **SA2:** 12+ months, independent customer engagements, working depth in 4 product areas.
-- **Senior SA (SSA):** leads complex POVs to technical wins, deep in 3 areas, a hyperscaler certification, contributes to pipeline.
-- **Principal SA (PSA):** owns strategic wins, expert in 2+ areas, multiplies the team through enablement and mentoring, has completed Champion Building and Value Engineering.
+- **SA2:** 12+ months, independent customer engagements, can present 4 product areas (Present level).
+- **Senior SA (SSA):** leads complex POVs to technical wins, can demo 3 areas (Demo level), a hyperscaler certification, contributes to pipeline.
+- **Principal SA (PSA):** owns strategic wins, can prove 2+ areas in a customer POC (Prove level), multiplies the team through enablement and mentoring, has completed Champion Building and Value Engineering.

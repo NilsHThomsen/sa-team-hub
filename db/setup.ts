@@ -41,7 +41,7 @@ const people = [
 ];
 
 const productSkills = ["Next.js & Rendering", "Caching & CDN", "AI SDK & Agents", "Security & Compliance", "Migrations", "Observability"];
-// Levels per person in productSkills order: 0 none, 1 aware, 2 working, 3 deep, 4 expert/teaches others.
+// Levels per person in productSkills order: 0 None, 1 Elevator, 2 Present, 3 Demo, 4 Prove (see agent/lib/skill-levels.ts).
 const levels: Record<string, number[]> = {
   "priya-nair": [4, 3, 3, 4, 3, 3],
   "tom-becker": [2, 2, 1, 3, 2, 2],

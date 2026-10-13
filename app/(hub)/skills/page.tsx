@@ -1,15 +1,19 @@
 import { listPeople, skillGaps, skillsMatrix } from "@/agent/lib/data";
+import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
+import { PersonFilter } from "../_person-filter";
+import { SKILL_LEVEL_MEANING, SKILL_LEVELS, skillLevelName } from "@/agent/lib/skill-levels";
 import { cn } from "@/lib/utils";
 import { PageHeader, Pill, Section, Table, Td } from "../_ui";
 
 const LEVEL_STYLE = ["bg-slate-50 text-slate-400", "bg-slate-100", "bg-sky-100", "bg-sky-300", "bg-sky-600 text-white"];
-const LEVEL_LABEL = ["None", "Aware", "Working", "Deep", "Expert"];
 
-export default async function SkillsPage() {
+export default async function SkillsPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
-  const [people, skills, gaps] = await Promise.all([listPeople(), skillsMatrix(), skillGaps(actor)]);
-  const ics = people.filter((p) => p.role === "ic");
+  const [people, allSkills, gaps, selected] = await Promise.all([listPeople(), skillsMatrix(), skillGaps(actor), selectedPeople(searchParams)]);
+  const team = people.filter((p) => p.role === "ic");
+  const ics = byPeople(team, selected, (p) => p.id);
+  const skills = byPeople(allSkills, selected, (s) => s.person_id);
 
   const productNames = [...new Set(skills.filter((s) => s.category === "product").map((s) => s.name))];
   const enablementNames = [...new Set(skills.filter((s) => s.category === "enablement").map((s) => s.name))];
@@ -21,9 +25,10 @@ export default async function SkillsPage() {
       <PageHeader
         subtitle="Product depth, certifications and enablement in one place. Team-visible so anyone can find who knows what."
         title="Skills Matrix"
+        actions={<PersonFilter people={team} />}
       />
 
-      <Section note={LEVEL_LABEL.map((l, i) => `${i} ${l}`).join(" · ")} title="Product skills">
+      <Section note={SKILL_LEVELS.join(" → ")} title="Product skills">
         <Table head={["Person", ...productNames]}>
           {ics.map((p) => (
             <tr className={cn(p.id === viewer.personId && "bg-amber-50/60")} key={p.id}>
@@ -32,8 +37,11 @@ export default async function SkillsPage() {
                 const level = find(p.id, "product", name)?.level ?? 0;
                 return (
                   <Td key={name}>
-                    <span className={cn("inline-block w-8 rounded text-center tabular-nums", LEVEL_STYLE[level])} title={LEVEL_LABEL[level]}>
-                      {level}
+                    <span
+                      className={cn("inline-block min-w-[4.5rem] rounded px-1.5 py-0.5 text-center text-xs", LEVEL_STYLE[level])}
+                      title={SKILL_LEVEL_MEANING[skillLevelName(level)]}
+                    >
+                      {skillLevelName(level)}
                     </span>
                   </Td>
                 );
@@ -77,7 +85,7 @@ export default async function SkillsPage() {
         </Section>
       </div>
 
-      <Section note="Compared with next quarter's needs" title="Coverage gaps">
+      <Section note="Whole team, compared with next quarter's needs" title="Coverage gaps">
         {gaps.myGaps ? (
           <p className="text-sm">
             Your gaps against next quarter&apos;s needs: {gaps.myGaps.length === 0 ? "none, nice work." : gaps.myGaps.join(", ")}
@@ -86,7 +94,10 @@ export default async function SkillsPage() {
         <Table head={["Need", "Why", "Have / needed", "Qualified", "Closest"]}>
           {gaps.gaps.map((g) => (
             <tr key={g.name}>
-              <Td className="font-medium">{g.name}</Td>
+              <Td className="font-medium">
+                {g.name}
+                {g.min_level ? <div className="font-normal text-muted-foreground text-xs">{g.min_level} or above</div> : null}
+              </Td>
               <Td className="text-muted-foreground">{g.reason}</Td>
               <Td className={cn("whitespace-nowrap tabular-nums", g.short_by > 0 && "font-medium text-red-600")}>
                 {g.have} / {g.needed}

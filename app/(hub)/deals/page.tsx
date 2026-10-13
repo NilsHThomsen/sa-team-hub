@@ -1,18 +1,25 @@
-import { alignmentFlag, dealCoverage, LABEL } from "@/agent/lib/data";
+import { alignmentFlag, dealCoverage, LABEL, listPeople, summarizeDeals } from "@/agent/lib/data";
+import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
+import { PersonFilter } from "../_person-filter";
 import { PageHeader, Section, Stat, Table, Td } from "../_ui";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-export default async function DealsPage() {
+export default async function DealsPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
-  const { deals, summary } = await dealCoverage(actor);
+  const [coverage, people, selected] = await Promise.all([dealCoverage(actor), listPeople(), selectedPeople(searchParams)]);
+  const manager = viewer.role === "manager";
+  // Filter by the covering SA. ICs already see only their own deals, so the filter is for managers.
+  const deals = manager ? byPeople(coverage.deals, selected, (d) => d.sa_id) : coverage.deals;
+  const summary = manager && selected ? summarizeDeals(deals) : coverage.summary;
 
   return (
     <>
       <PageHeader
         subtitle="From the business plan: every stage 2+ deal has an SA, a current next step, and a presales stage that matches the forecast."
         title="Deal Coverage"
+        actions={manager ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
       />
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat label="Open deals" value={summary.open_deals} />
@@ -21,7 +28,7 @@ export default async function DealsPage() {
         <Stat label="Presales vs forecast mismatches" tone={summary.stage_misaligned > 0 ? "warn" : "good"} value={summary.stage_misaligned} />
         <Stat label="Next steps older than 14 days" tone={summary.stale_next_steps > 0 ? "warn" : "good"} value={summary.stale_next_steps} />
       </div>
-      <Section title={viewer.role === "manager" ? "All open deals" : "Deals you cover"}>
+      <Section title={!manager ? "Deals you cover" : selected ? "Open deals for the selected people" : "All open deals"}>
         <Table head={["Account", "Stage", "Presales", "Forecast", "ACV", "Close", "AE", "SA", "Next step", "Flags"]}>
           {deals.map((d) => (
             <tr key={d.id}>

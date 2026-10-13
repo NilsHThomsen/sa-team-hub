@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function PageHeader({ title, subtitle }: { readonly title: string; readonly subtitle?: string }) {
+export function PageHeader({ title, subtitle, actions }: { readonly title: string; readonly subtitle?: string; readonly actions?: ReactNode }) {
   return (
-    <div className="mb-6 space-y-1">
-      <h1 className="font-semibold text-2xl tracking-tight">{title}</h1>
-      {subtitle ? <p className="text-muted-foreground text-sm">{subtitle}</p> : null}
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <div className="space-y-1">
+        <h1 className="font-semibold text-2xl tracking-tight">{title}</h1>
+        {subtitle ? <p className="text-muted-foreground text-sm">{subtitle}</p> : null}
+      </div>
+      {actions}
     </div>
   );
 }

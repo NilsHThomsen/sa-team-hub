@@ -33,19 +33,19 @@ export const FRAMEWORK: Record<Level, Criterion[]> = {
   SA2: [
     { id: "tenure", label: "12+ months in role", check: (e) => ({ met: e.tenureMonths >= 12, detail: `${e.tenureMonths} months` }) },
     { id: "customer", label: "Runs customer engagements independently (2+ customer wins)", check: (e) => ({ met: count(e, "customer") >= 2, detail: `${count(e, "customer")} customer achievements` }) },
-    { id: "depth", label: "Working depth (level 2+) across 4 product areas", check: (e) => ({ met: deepSkills(e, 2).length >= 4, detail: deepSkills(e, 2).join(", ") || "none" }) },
+    { id: "depth", label: "Can present (Present or above) 4 product areas", check: (e) => ({ met: deepSkills(e, 2).length >= 4, detail: deepSkills(e, 2).join(", ") || "none" }) },
   ],
   SSA: [
     { id: "tenure", label: "18+ months at SA2", check: (e) => ({ met: e.tenureMonths >= 18, detail: `${e.tenureMonths} months` }) },
     { id: "customer", label: "Leads complex POVs to a technical win (3+ customer wins)", check: (e) => ({ met: count(e, "customer") >= 3, detail: `${count(e, "customer")} customer achievements` }) },
-    { id: "depth", label: "Deep (level 3+) in 3 product areas", check: (e) => ({ met: deepSkills(e, 3).length >= 3, detail: deepSkills(e, 3).join(", ") || "none" }) },
+    { id: "depth", label: "Can demo (Demo or above) 3 product areas", check: (e) => ({ met: deepSkills(e, 3).length >= 3, detail: deepSkills(e, 3).join(", ") || "none" }) },
     { id: "cert", label: "At least one hyperscaler certification", check: (e) => ({ met: done(e, "certification").length >= 1, detail: done(e, "certification").join(", ") || "none" }) },
     { id: "pipeline", label: "Contributes to pipeline (workshops, account days)", check: (e) => ({ met: count(e, "pipeline") + count(e, "community") >= 1, detail: `${count(e, "pipeline") + count(e, "community")} pipeline or community achievements` }) },
   ],
   PSA: [
     { id: "tenure", label: "24+ months total in the team", check: (e) => ({ met: e.tenureMonths >= 24, detail: `${e.tenureMonths} months` }) },
     { id: "customer", label: "Owns strategic technical wins (3+ customer wins)", check: (e) => ({ met: count(e, "customer") >= 3, detail: `${count(e, "customer")} customer achievements` }) },
-    { id: "expert", label: "Expert (level 4) in 2+ areas and teaches others", check: (e) => ({ met: deepSkills(e, 4).length >= 2, detail: deepSkills(e, 4).join(", ") || "none" }) },
+    { id: "expert", label: "Can prove (Prove) 2+ areas in a customer POC", check: (e) => ({ met: deepSkills(e, 4).length >= 2, detail: deepSkills(e, 4).join(", ") || "none" }) },
     { id: "multiplier", label: "Multiplies the team: enablement or mentoring (2+ achievements)", check: (e) => ({ met: count(e, "enablement") + count(e, "leadership") >= 2, detail: `${count(e, "enablement") + count(e, "leadership")} enablement or leadership achievements` }) },
     { id: "enablement", label: "Completed Champion Building and Value Engineering", check: (e) => {
       const d = done(e, "enablement");

@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { AccessDenied, type Actor, isManager, requireManager } from "./actor";
+import { skillLevelName } from "./skill-levels";
 
 // All reads and writes go through these functions, for the dashboard pages and
 // the agent's tools alike. Access rules live here, next to the SQL, so a new
@@ -82,6 +83,7 @@ export interface SkillGap {
   have: number;
   short_by: number;
   qualified: string[];
+  min_level?: string; // product skills: the level that counts, e.g. "Demo"
   closest: string[]; // people one step away (level one below, or in progress)
 }
 
@@ -114,6 +116,7 @@ export async function skillGaps(actor: Actor): Promise<{ gaps: SkillGap[]; myGap
       category: need.category,
       name: need.name,
       reason: need.reason,
+      min_level: need.category === "product" ? skillLevelName(need.min_level) : undefined,
       needed: need.min_people,
       have: qualified.length,
       short_by: Math.max(0, need.min_people - qualified.length),
@@ -257,7 +260,7 @@ const STALE_DAYS = 14;
 const SA_DEAL_LIMIT = 3; // active stage 2-4 deals per SA before we call it overloaded
 
 /** Applies the business plan's coverage rules to every open deal. */
-export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; summary: Record<string, number> }> {
+export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; summary: ReturnType<typeof summarizeDeals> }> {
   const rows = await db()<Omit<DealRow, "flags">[]>`
     select d.id, d.account, d.ae, d.sa_id, p.name as sa_name, d.stage, d.acv_usd, d.close_quarter,
            d.next_step, to_char(d.next_step_on, 'YYYY-MM-DD') as next_step_on,
@@ -282,19 +285,22 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
 
   // ICs see the deals they cover; the team-wide summary numbers carry no names.
   const visible = actor.kind === "user" && actor.role === "ic" ? deals.filter((d) => d.sa_id === actor.personId) : deals;
+  const summary = summarizeDeals(deals);
+  return { deals: visible, summary };
+}
+
+/** Coverage numbers for a set of deals: the whole team, or one or more people's deals on a filtered page. */
+export function summarizeDeals(deals: readonly DealRow[]) {
   const stage2plus = deals.filter((d) => d.stage >= 2);
-  const summary = {
+  const s3 = deals.filter((d) => d.stage >= 3);
+  return {
     open_deals: deals.length,
     stage2plus: stage2plus.length,
     stage2plus_covered_pct: stage2plus.length === 0 ? 100 : Math.round((100 * stage2plus.filter((d) => d.sa_id).length) / stage2plus.length),
     stale_next_steps: deals.filter((d) => d.days_since_update > STALE_DAYS).length,
     stage_misaligned: deals.filter((d) => alignmentFlag(d.presales_stage, d.forecast)).length,
-    stage3plus_tech_win_pct: (() => {
-      const s3 = deals.filter((d) => d.stage >= 3);
-      return s3.length === 0 ? 100 : Math.round((100 * s3.filter((d) => d.presales_stage === "tech_win").length) / s3.length);
-    })(),
+    stage3plus_tech_win_pct: s3.length === 0 ? 100 : Math.round((100 * s3.filter((d) => d.presales_stage === "tech_win").length) / s3.length),
   };
-  return { deals: visible, summary };
 }
 
 /** Finds an open deal by id or account name. Errors if the name matches more than one. */
