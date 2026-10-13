@@ -1,25 +1,28 @@
-import { defineAgent } from "eve";
+import { defineAgent, defineDynamic } from "eve";
+import { CONTEXT_WINDOW_TOKENS, gatewayOptions, primaryModel } from "./lib/models";
 
 export default defineAgent({
   // A plain "provider/model" string routes through Vercel AI Gateway. On Vercel
   // the deployment authenticates to Gateway with OIDC, so there are no provider
   // API keys in this project.
-  model: "anthropic/claude-sonnet-5",
-  // Set explicitly so builds do not depend on fetching the Gateway model catalog,
-  // and so compaction triggers at a predictable size.
-  modelContextWindowTokens: 200_000,
-
-  modelOptions: {
-    providerOptions: {
-      gateway: {
-        // Ordered fallback: if Anthropic errors or is degraded, Gateway retries on
-        // the next model. Same list as lib/models.ts, which the workflow uses.
-        models: ["openai/gpt-6-luna-fast"],
-        // Shows up in Gateway usage so chat spend is separable from workflow spend.
-        tags: ["app:sa-team-hub", "feature:chat"],
+  //
+  // The primary model is chosen by a manager on the Settings page, so it is read
+  // once when each session starts (switching mid-session would throw away the
+  // prompt cache). Sessions already running keep the model they started with.
+  model: defineDynamic({
+    events: {
+      "session.started": async () => {
+        const model = await primaryModel();
+        return {
+          model,
+          modelContextWindowTokens: CONTEXT_WINDOW_TOKENS,
+          // Ordered fallback on another provider, and a tag so chat spend is
+          // separable from workflow spend in Gateway usage.
+          modelOptions: { providerOptions: gatewayOptions("chat", model) },
+        };
       },
     },
-  },
+  }),
 
   // Least privilege: no shell, file system or web tools. This agent only needs
   // the typed tools in agent/tools, each of which enforces the caller's role.

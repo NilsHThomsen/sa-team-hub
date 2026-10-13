@@ -18,10 +18,13 @@ import {
   findDeal,
   listCareerGoals,
   setCareerGoal,
+  getModelSetting,
+  setPrimaryModel,
   setRetentionRisk,
   skillGaps,
 } from "../agent/lib/data";
 import { db } from "../agent/lib/db";
+import { DEFAULT_MODEL, primaryModel } from "../agent/lib/models";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
 
 const manager: Actor = { kind: "user", personId: "jordan-hayes", name: "Jordan Hayes", role: "manager" };
@@ -199,5 +202,22 @@ describe("career goals", () => {
     await assert.rejects(setCareerGoal(manager, { personId: "tom-becker", goal: "Astronaut" }), /not a career goal/);
     await assert.rejects(setCareerGoal(manager, { personId: "jordan-hayes", goal: "Manager" }), /tracked for SAs/);
     await assert.rejects(setCareerGoal(app, { personId: "tom-becker", goal: "Manager" }), AccessDenied);
+  });
+});
+
+describe("primary model setting", () => {
+  test("only a manager can choose the model, and only from the list", async () => {
+    await assert.rejects(setPrimaryModel(priya, "anthropic/claude-opus-5.5"), AccessDenied);
+    await assert.rejects(setPrimaryModel(app, "anthropic/claude-opus-5.5"), AccessDenied);
+    await assert.rejects(getModelSetting(priya), AccessDenied);
+    await assert.rejects(setPrimaryModel(manager, "someone/made-up-model"), /not one of the models/);
+  });
+
+  test("the chosen model is what new sessions and workflows read", async () => {
+    const saved = await setPrimaryModel(manager, "anthropic/claude-opus-5.5");
+    assert.equal(saved.updated_by_name, "Jordan Hayes");
+    assert.equal(await primaryModel(), "anthropic/claude-opus-5.5");
+    await setPrimaryModel(manager, DEFAULT_MODEL);
+    assert.equal(await primaryModel(), DEFAULT_MODEL);
   });
 });

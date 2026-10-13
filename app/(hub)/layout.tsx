@@ -13,7 +13,12 @@ export default async function HubLayout({ children }: { readonly children: React
     { href: "/dev-plans", label: "Dev Plans" },
     { href: "/deals", label: "Deal Coverage" },
     // Hidden for ICs; the page and the data layer refuse them anyway.
-    ...(viewer.role === "manager" ? [{ href: "/talent", label: "Talent" }] : []),
+    ...(viewer.role === "manager"
+      ? [
+          { href: "/talent", label: "Talent" },
+          { href: "/settings", label: "Settings" },
+        ]
+      : []),
   ];
 
   return (

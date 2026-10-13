@@ -13,6 +13,7 @@ Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation
 | Development Plans | Grouped under each person's career goal (Principal SA, Manager, Product Manager...), with goals, next steps and overdue flags. SAs change their own goal from the page; managers can change anyone's | `update_career_goal` (asks to confirm), read via profile |
 | Deal Coverage | Stage 2+ coverage, stale next steps, missing technical wins, overloaded SAs | `review_deal_coverage`, `update_deal_next_step` (SAs update their own deals, confirm before saving, logged in `deal_updates`) |
 | Talent (managers only) | Retention risk, promotion cases, succession, warm bench | `get_talent_overview`, `update_retention_risk` (asks to confirm), `draft_promotion_case` (workflow) |
+| Settings (managers only) | Choose the primary model from a short list of AI Gateway models. New chats, the digest and promotion cases pick it up; open chats keep theirs | Read once per session by a `defineDynamic` model in `agent/agent.ts` |
 | Weekly digest | Shown on the home page | `friday-digest` schedule, Fridays 06:00 UTC |
 
 ## Architecture
@@ -31,7 +32,8 @@ Browser ──► Next.js 16 (App Router)
              agent/lib/data.ts  ◄── one data layer for pages and tools, access rules next to the SQL
                     │
                  Postgres (Neon)
-Models: AI Gateway, anthropic/claude-sonnet-5 with openai/gpt-6-luna-fast fallback, tagged per feature
+Models: AI Gateway. A manager picks the primary model on /settings (default anthropic/claude-sonnet-5);
+        Gateway falls back to another provider, and every call is tagged per feature
 ```
 
 ### Security: individual input vs management eyes only

@@ -3,7 +3,7 @@ import { defineWorkflowTool } from "eve/tools";
 import { z } from "zod";
 import { db } from "../lib/db";
 import { type Evidence, type Level, NEXT_LEVEL, scoreAgainst } from "../lib/framework";
-import { gatewayOptions, PRIMARY_MODEL } from "../lib/models";
+import { gatewayOptions, primaryModel } from "../lib/models";
 import { managerOnly } from "../lib/policies";
 
 // Why a workflow tool and not a plain tool: drafting a case is several steps,
@@ -113,9 +113,10 @@ async function draftCase(evidence: Evidence, score: ReturnType<typeof scoreAgain
   "use step";
   // AI SDK structured output: the model must return an object matching caseSchema,
   // so the dashboard and the approval prompt never parse free text.
+  const model = await primaryModel();
   const result = await generateText({
-    model: PRIMARY_MODEL,
-    providerOptions: gatewayOptions("promotion-case"),
+    model,
+    providerOptions: gatewayOptions("promotion-case", model),
     output: Output.object({ schema: caseSchema }),
     instructions:
       "You write promotion cases for a presales (Solutions Architect) team. Use only the evidence provided. " +

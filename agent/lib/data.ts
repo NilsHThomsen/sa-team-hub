@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { AccessDenied, type Actor, isManager, requireManager } from "./actor";
 import { type CareerGoal, isCareerGoal } from "./career-goals";
+import { DEFAULT_MODEL, isModelId, type ModelId } from "./models";
 import { skillLevelName } from "./skill-levels";
 
 // All reads and writes go through these functions, for the dashboard pages and
@@ -250,6 +251,37 @@ export async function setCareerGoal(actor: Actor, input: { personId: string; goa
           updated_by = excluded.updated_by, updated_at = now()`;
   const [row] = (await listCareerGoals(actor)).filter((g) => g.person_id === input.personId);
   return row;
+}
+
+// ---------- Settings ----------
+
+export interface ModelSetting {
+  model: ModelId;
+  updated_by_name: string | null;
+  updated_at: string | null;
+}
+
+/** The primary model and who chose it. Managers only, like the page that shows it. */
+export async function getModelSetting(actor: Actor): Promise<ModelSetting> {
+  requireManager(actor, "Model settings");
+  const [row] = await db()<{ value: string; updated_by_name: string | null; updated_at: string }[]>`
+    select s.value, p.name as updated_by_name, to_char(s.updated_at, 'YYYY-MM-DD HH24:MI') as updated_at
+    from app_settings s left join people p on p.id = s.updated_by
+    where s.key = 'primary_model'`;
+  if (!row || !isModelId(row.value)) return { model: DEFAULT_MODEL, updated_by_name: null, updated_at: null };
+  return { model: row.value, updated_by_name: row.updated_by_name, updated_at: row.updated_at };
+}
+
+/** Choose the primary model for new chats, the digest and promotion cases. Managers only. */
+export async function setPrimaryModel(actor: Actor, model: string): Promise<ModelSetting> {
+  requireManager(actor, "Model settings");
+  if (actor.kind !== "user") throw new AccessDenied("Model settings need a signed-in manager.");
+  if (!isModelId(model)) throw new Error(`"${model}" is not one of the models on offer.`);
+  await db()`
+    insert into app_settings (key, value, updated_by, updated_at)
+    values ('primary_model', ${model}, ${actor.personId}, now())
+    on conflict (key) do update set value = excluded.value, updated_by = excluded.updated_by, updated_at = now()`;
+  return getModelSetting(actor);
 }
 
 // ---------- Deal coverage ----------

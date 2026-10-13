@@ -127,6 +127,14 @@ create table if not exists deal_updates (
 alter table deal_updates add column if not exists presales_stage text;
 alter table deal_updates drop column if exists tech_win;
 
+-- App-wide settings a manager can change, such as the primary model.
+create table if not exists app_settings (
+  key           text primary key,
+  value         text not null,
+  updated_by    text not null,
+  updated_at    timestamptz not null default now()
+);
+
 -- ---------- Manager-only tables ----------
 
 create table if not exists retention_risks (
