@@ -69,19 +69,37 @@ create table if not exists dev_plans (
 );
 
 -- Deal coverage, from the plan's "SA Sales Activities": stage 2+ deals should
--- have an SA, a current next step, and a technical-win status.
+-- have an SA, a current next step, and a presales stage that agrees with the
+-- sales forecast (a tech win should be in Commit or Strong Upside, and a Commit
+-- should already have its tech win).
 create table if not exists deals (
-  id            text primary key,
-  account       text not null,
-  ae            text not null,
-  sa_id         text references people(id),
-  stage         int not null check (stage between 1 and 5),
-  acv_usd       int not null,
-  close_quarter text not null,
-  next_step     text not null,
-  next_step_on  date not null,               -- when the next step was last updated
-  tech_win      boolean not null default false
+  id             text primary key,
+  account        text not null,
+  ae             text not null,
+  sa_id          text references people(id),
+  stage          int not null check (stage between 1 and 5),
+  acv_usd        int not null,
+  close_quarter  text not null,
+  next_step      text not null,
+  next_step_on   date not null,               -- when the next step was last updated
+  presales_stage text not null default 'discovery'
+                 check (presales_stage in ('discovery', 'solution_design', 'technical_validation', 'tech_win')),
+  forecast       text not null default 'pipeline'
+                 check (forecast in ('pipeline', 'upside', 'strong_upside', 'commit', 'closed'))
 );
+
+-- Upgrade a database created before presales_stage and forecast existed: the old
+-- tech_win flag becomes presales_stage 'tech_win'. Safe to run repeatedly.
+alter table deals add column if not exists presales_stage text not null default 'discovery'
+  check (presales_stage in ('discovery', 'solution_design', 'technical_validation', 'tech_win'));
+alter table deals add column if not exists forecast text not null default 'pipeline'
+  check (forecast in ('pipeline', 'upside', 'strong_upside', 'commit', 'closed'));
+do $$ begin
+  if exists (select 1 from information_schema.columns where table_name = 'deals' and column_name = 'tech_win') then
+    update deals set presales_stage = 'tech_win' where tech_win;
+    alter table deals drop column tech_win;
+  end if;
+end $$;
 
 -- CRM change log: every next-step update made through the agent, with who made it.
 -- idempotency_key is the tool call id, so a replayed step logs (and updates) once.
@@ -89,11 +107,13 @@ create table if not exists deal_updates (
   id              serial primary key,
   deal_id         text not null references deals(id) on delete cascade,
   next_step       text not null,
-  tech_win        boolean,
+  presales_stage  text,
   updated_by      text not null references people(id),
   idempotency_key text not null unique,
   created_at      timestamptz not null default now()
 );
+alter table deal_updates add column if not exists presales_stage text;
+alter table deal_updates drop column if exists tech_win;
 
 -- ---------- Manager-only tables ----------
 

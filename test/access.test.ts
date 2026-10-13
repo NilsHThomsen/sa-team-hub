@@ -6,6 +6,7 @@ import { after, describe, test } from "node:test";
 import { AccessDenied, type Actor, actorFromAuth } from "../agent/lib/actor";
 import {
   addAchievement,
+  alignmentFlag,
   dealCoverage,
   listAchievements,
   listCandidates,
@@ -122,11 +123,12 @@ describe("eve caller mapping and approval policies", () => {
 describe("CRM next-step updates", () => {
   test("an IC can update a deal they cover, once per tool call", async () => {
     const key = `t-${Date.now()}-deal`;
-    const first = await updateDealNextStep(priya, { dealId: "D-1014", nextStep: "Commercial proposal with Tama on Friday", techWin: true }, key);
-    const replay = await updateDealNextStep(priya, { dealId: "D-1014", nextStep: "Commercial proposal with Tama on Friday", techWin: true }, key);
+    const first = await updateDealNextStep(priya, { dealId: "D-1014", nextStep: "Commercial proposal with Tama on Friday", presalesStage: "tech_win" }, key);
+    const replay = await updateDealNextStep(priya, { dealId: "D-1014", nextStep: "Commercial proposal with Tama on Friday", presalesStage: "tech_win" }, key);
     assert.equal(first.duplicate, false);
     assert.equal(replay.duplicate, true);
-    assert.equal(first.tech_win, true);
+    assert.equal(first.presales_stage, "tech_win");
+    assert.equal(first.misaligned, null); // Aurora is Strong Upside, so a tech win lines up
     const [{ count }] = await db()<{ count: number }[]>`select count(*)::int as count from deal_updates where idempotency_key = ${key}`;
     assert.equal(count, 1);
   });
@@ -134,7 +136,8 @@ describe("CRM next-step updates", () => {
   test("an IC cannot update a colleague's deal; a manager can", async () => {
     await assert.rejects(updateDealNextStep(priya, { dealId: "D-1003", nextStep: "Not mine to change" }, `t-${Date.now()}-x`), AccessDenied);
     const r = await updateDealNextStep(manager, { dealId: "D-1003", nextStep: "Shortlist decision due 7 Nov" }, `t-${Date.now()}-m`);
-    assert.equal(r.tech_win, false); // untouched when techWin is not given
+    assert.equal(r.presales_stage, "technical_validation"); // untouched when not given
+    assert.match(r.misaligned ?? "", /Commit without a tech win/); // Dept. of Transport is Commit
   });
 
   test("exact account names win over partial matches", async () => {
@@ -147,5 +150,26 @@ describe("CRM next-step updates", () => {
     const icAuth = { authenticator: "sa-team-hub", principalId: "priya-nair", principalType: "user", attributes: { role: "ic", name: "Priya Nair" } };
     assert.equal(await signedInConfirms(session(icAuth)), "user-approval");
     assert.equal(((await signedInConfirms(session({ authenticator: "app", principalId: "eve:app", principalType: "runtime", attributes: {} }))) as { type: string }).type, "denied");
+  });
+});
+
+describe("presales stage vs forecast", () => {
+  test("a tech win must be in Strong Upside or Commit", () => {
+    assert.match(alignmentFlag("tech_win", "upside") ?? "", /only Upside/);
+    assert.match(alignmentFlag("tech_win", "pipeline") ?? "", /only Pipeline/);
+    assert.equal(alignmentFlag("tech_win", "strong_upside"), null);
+    assert.equal(alignmentFlag("tech_win", "commit"), null);
+  });
+
+  test("a Commit must already have a tech win", () => {
+    assert.match(alignmentFlag("technical_validation", "commit") ?? "", /Commit without a tech win/);
+    assert.equal(alignmentFlag("technical_validation", "strong_upside"), null);
+  });
+
+  test("the seeded mismatches are flagged on the deal list", async () => {
+    const { deals, summary } = await dealCoverage(manager);
+    const flagsFor = (id: string) => deals.find((d) => d.id === id)?.flags.join("; ") ?? "";
+    assert.match(flagsFor("D-1006"), /tech win but forecast is only Upside/);
+    assert.ok(summary.stage_misaligned >= 1);
   });
 });

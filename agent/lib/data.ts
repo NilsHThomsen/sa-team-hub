@@ -205,6 +205,37 @@ export async function listDevPlans(actor: Actor): Promise<DevPlan[]> {
 
 // ---------- Deal coverage ----------
 
+export const PRESALES_STAGES = ["discovery", "solution_design", "technical_validation", "tech_win"] as const;
+export type PresalesStage = (typeof PRESALES_STAGES)[number];
+export const FORECASTS = ["pipeline", "upside", "strong_upside", "commit", "closed"] as const;
+export type Forecast = (typeof FORECASTS)[number];
+export const LABEL: Record<PresalesStage | Forecast, string> = {
+  discovery: "Discovery",
+  solution_design: "Solution design",
+  technical_validation: "Technical validation",
+  tech_win: "Tech win",
+  pipeline: "Pipeline",
+  upside: "Upside",
+  strong_upside: "Strong Upside",
+  commit: "Commit",
+  closed: "Closed",
+};
+
+/**
+ * Presales and sales should tell the same story. A tech win the sales forecast
+ * still calls Pipeline or Upside is under-called; a Commit with no tech win is
+ * over-called. Either one is a conversation for the deal review.
+ */
+export function alignmentFlag(presales: PresalesStage, forecast: Forecast): string | null {
+  if (presales === "tech_win" && (forecast === "pipeline" || forecast === "upside")) {
+    return `tech win but forecast is only ${LABEL[forecast]} (should be Strong Upside or Commit)`;
+  }
+  if (forecast === "commit" && presales !== "tech_win") {
+    return `in Commit without a tech win (presales stage: ${LABEL[presales]})`;
+  }
+  return null;
+}
+
 export interface DealRow {
   id: string;
   account: string;
@@ -217,7 +248,8 @@ export interface DealRow {
   next_step: string;
   next_step_on: string;
   days_since_update: number;
-  tech_win: boolean;
+  presales_stage: PresalesStage;
+  forecast: Forecast;
   flags: string[];
 }
 
@@ -229,7 +261,7 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
   const rows = await db()<Omit<DealRow, "flags">[]>`
     select d.id, d.account, d.ae, d.sa_id, p.name as sa_name, d.stage, d.acv_usd, d.close_quarter,
            d.next_step, to_char(d.next_step_on, 'YYYY-MM-DD') as next_step_on,
-           (current_date - d.next_step_on)::int as days_since_update, d.tech_win
+           (current_date - d.next_step_on)::int as days_since_update, d.presales_stage, d.forecast
     from deals d left join people p on p.id = d.sa_id
     where d.stage < 5
     order by d.stage desc, d.acv_usd desc`;
@@ -241,7 +273,9 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
     const flags: string[] = [];
     if (r.stage >= 2 && !r.sa_id) flags.push("no SA assigned");
     if (r.days_since_update > STALE_DAYS) flags.push(`next step ${r.days_since_update} days old`);
-    if (r.stage >= 3 && !r.tech_win) flags.push("no technical win yet");
+    if (r.stage >= 3 && r.presales_stage !== "tech_win") flags.push("no technical win yet");
+    const misaligned = alignmentFlag(r.presales_stage, r.forecast);
+    if (misaligned) flags.push(misaligned);
     if (r.sa_id && (load.get(r.sa_id) ?? 0) > SA_DEAL_LIMIT) flags.push(`${r.sa_name} is on ${load.get(r.sa_id)} active deals`);
     return { ...r, flags };
   });
@@ -254,9 +288,10 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
     stage2plus: stage2plus.length,
     stage2plus_covered_pct: stage2plus.length === 0 ? 100 : Math.round((100 * stage2plus.filter((d) => d.sa_id).length) / stage2plus.length),
     stale_next_steps: deals.filter((d) => d.days_since_update > STALE_DAYS).length,
+    stage_misaligned: deals.filter((d) => alignmentFlag(d.presales_stage, d.forecast)).length,
     stage3plus_tech_win_pct: (() => {
       const s3 = deals.filter((d) => d.stage >= 3);
-      return s3.length === 0 ? 100 : Math.round((100 * s3.filter((d) => d.tech_win).length) / s3.length);
+      return s3.length === 0 ? 100 : Math.round((100 * s3.filter((d) => d.presales_stage === "tech_win").length) / s3.length);
     })(),
   };
   return { deals: visible, summary };
@@ -276,16 +311,16 @@ export async function findDeal(query: string): Promise<{ id: string; account: st
 }
 
 /**
- * Updates a deal's next step (and optionally its technical-win flag), the way an
+ * Updates a deal's next step (and optionally its presales stage), the way an
  * SA would in the CRM. ICs can update only deals they cover; managers any deal.
  * The change is logged in deal_updates with the caller and the tool call id, so a
  * replayed step neither double-logs nor re-dates the next step.
  */
 export async function updateDealNextStep(
   actor: Actor,
-  input: { dealId: string; nextStep: string; techWin?: boolean },
+  input: { dealId: string; nextStep: string; presalesStage?: PresalesStage },
   idempotencyKey: string,
-): Promise<{ deal_id: string; account: string; next_step: string; tech_win: boolean; next_step_on: string; duplicate: boolean }> {
+): Promise<{ deal_id: string; account: string; next_step: string; presales_stage: PresalesStage; forecast: Forecast; next_step_on: string; misaligned: string | null; duplicate: boolean }> {
   if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can update the CRM.");
   const sql = db();
   return sql.begin(async (tx) => {
@@ -296,19 +331,21 @@ export async function updateDealNextStep(
       throw new AccessDenied(`You can only update deals you cover. Ask the SA on ${deal.account} or your manager.`);
     }
     const logged = await tx`
-      insert into deal_updates (deal_id, next_step, tech_win, updated_by, idempotency_key)
-      values (${deal.id}, ${input.nextStep}, ${input.techWin ?? null}, ${actor.personId}, ${idempotencyKey})
+      insert into deal_updates (deal_id, next_step, presales_stage, updated_by, idempotency_key)
+      values (${deal.id}, ${input.nextStep}, ${input.presalesStage ?? null}, ${actor.personId}, ${idempotencyKey})
       on conflict (idempotency_key) do nothing
       returning id`;
     if (logged.length > 0) {
       await tx`
         update deals set next_step = ${input.nextStep}, next_step_on = current_date,
-          tech_win = coalesce(${input.techWin ?? null}::boolean, tech_win)
+          presales_stage = coalesce(${input.presalesStage ?? null}::text, presales_stage)
         where id = ${deal.id}`;
     }
-    const [row] = await tx<{ next_step: string; tech_win: boolean; next_step_on: string }[]>`
-      select next_step, tech_win, to_char(next_step_on, 'YYYY-MM-DD') as next_step_on from deals where id = ${deal.id}`;
-    return { deal_id: deal.id, account: deal.account, ...row, duplicate: logged.length === 0 };
+    const [row] = await tx<{ next_step: string; presales_stage: PresalesStage; forecast: Forecast; next_step_on: string }[]>`
+      select next_step, presales_stage, forecast, to_char(next_step_on, 'YYYY-MM-DD') as next_step_on from deals where id = ${deal.id}`;
+    // Tell the caller straight away if their update leaves presales and sales out of line.
+    const misaligned = alignmentFlag(row.presales_stage, row.forecast);
+    return { deal_id: deal.id, account: deal.account, ...row, misaligned, duplicate: logged.length === 0 };
   });
 }
 

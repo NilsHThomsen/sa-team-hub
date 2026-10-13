@@ -5,6 +5,7 @@ export function examplePrompts(role: Role): string[] {
   return role === "manager"
     ? [
         "Which deals need attention this week?",
+        "Which deals have presales and forecast out of line?",
         "Update Dept. of Transport: panel submission is in, shortlist decision due 7 Nov.",
         "Where are our biggest skills gaps for next quarter, and who is closest to closing them?",
         "Log a win for Hannah Kim: she ran the Kestrel Insurance AI workshop yesterday with 12 attendees.",

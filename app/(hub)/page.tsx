@@ -30,7 +30,7 @@ export default async function HomePage() {
       {manager ? (
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <Stat label="Stage 2+ deals with an SA" tone={coverage.summary.stage2plus_covered_pct >= 90 ? "good" : "warn"} value={`${coverage.summary.stage2plus_covered_pct}%`} />
-          <Stat label="Stage 3+ technical wins" value={`${coverage.summary.stage3plus_tech_win_pct}%`} />
+          <Stat label="Presales vs forecast mismatches" tone={coverage.summary.stage_misaligned > 0 ? "warn" : "good"} value={coverage.summary.stage_misaligned} />
           <Stat label="Stale next steps" tone={coverage.summary.stale_next_steps > 0 ? "warn" : "good"} value={coverage.summary.stale_next_steps} />
           <Stat label="Overdue dev plans" tone={overdue > 0 ? "warn" : "good"} value={overdue} />
           <Stat label="High retention risk" tone={risks.some((r) => r.risk === "high") ? "bad" : "good"} value={risks.filter((r) => r.risk === "high").length} />

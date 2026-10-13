@@ -129,21 +129,23 @@ const devPlans = [
   ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Jordan's leave and run two team meetings", 60, "on_track"],
 ] as const;
 
+// [id, account, AE, SA, sales stage 1-5, ACV, close quarter, next step, next step age (days), presales stage, forecast]
+// D-1003 (Commit, no tech win) and D-1006 (tech win, only Upside) are deliberately out of line.
 const deals = [
-  ["D-1001", "Harbour Bank", "Grace Liu", "priya-nair", 4, 480000, "Q4", "Exec readout of POV results", -3, true],
-  ["D-1002", "Tasman Retail", "Marco Silva", "sofia-rossi", 3, 260000, "Q4", "Migration phase 2 scoping", -6, false],
-  ["D-1003", "Dept. of Transport", "Anna Webb", "tom-becker", 3, 350000, "Q1", "Procurement panel submission", -22, false],
-  ["D-1004", "Southern Cross Mobile", "Ben Harris", "jack-wilson", 2, 310000, "Q1", "Discovery workshop on AI support agent", -2, false],
-  ["D-1005", "Coral Airlines", "Grace Liu", "daniel-okafor", 4, 720000, "Q4", "Security and architecture sign-off", -9, true],
-  ["D-1006", "Kiwi Freight", "Tama Ngata", "mei-chen", 3, 140000, "Q4", "Expand AI Gateway pilot to production", -4, true],
-  ["D-1007", "Services Australia", "Anna Webb", "ravi-menon", 2, 900000, "Q2", "Design authority follow-up", -31, false],
-  ["D-1008", "Brightside Energy", "Liam Ford", "liam-oconnor", 5, 95000, "Q4", "Closed won, hand over to onboarding", -1, true],
-  ["D-1009", "Kestrel Insurance", "Marco Silva", "hannah-kim", 2, 180000, "Q1", "Follow-up AI workshop", -8, false],
-  ["D-1010", "Pacific Media Group", "Ben Harris", null, 3, 410000, "Q1", "Customer asked for a POC proposal", -12, false],
-  ["D-1011", "Metro Health", "Anna Webb", null, 2, 230000, "Q1", "Initial discovery call held", -17, false],
-  ["D-1012", "Harbour Bank (Wealth)", "Grace Liu", "priya-nair", 2, 200000, "Q2", "Intro to wealth platform team", -26, false],
-  ["D-1013", "Outback Outdoors", "Liam Ford", "liam-oconnor", 1, 60000, "Q2", "Qualify budget", -40, false],
-  ["D-1014", "Aurora Logistics", "Tama Ngata", "priya-nair", 3, 330000, "Q1", "Agent POC success criteria", -5, false],
+  ["D-1001", "Harbour Bank", "Grace Liu", "priya-nair", 4, 480000, "Q4", "Exec readout of POV results", -3, "tech_win", "commit"],
+  ["D-1002", "Tasman Retail", "Marco Silva", "sofia-rossi", 3, 260000, "Q4", "Migration phase 2 scoping", -6, "technical_validation", "upside"],
+  ["D-1003", "Dept. of Transport", "Anna Webb", "tom-becker", 3, 350000, "Q1", "Procurement panel submission", -22, "technical_validation", "commit"],
+  ["D-1004", "Southern Cross Mobile", "Ben Harris", "jack-wilson", 2, 310000, "Q1", "Discovery workshop on AI support agent", -2, "discovery", "pipeline"],
+  ["D-1005", "Coral Airlines", "Grace Liu", "daniel-okafor", 4, 720000, "Q4", "Security and architecture sign-off", -9, "tech_win", "commit"],
+  ["D-1006", "Kiwi Freight", "Tama Ngata", "mei-chen", 3, 140000, "Q4", "Expand AI Gateway pilot to production", -4, "tech_win", "upside"],
+  ["D-1007", "Services Australia", "Anna Webb", "ravi-menon", 2, 900000, "Q2", "Design authority follow-up", -31, "solution_design", "pipeline"],
+  ["D-1008", "Brightside Energy", "Liam Ford", "liam-oconnor", 5, 95000, "Q4", "Closed won, hand over to onboarding", -1, "tech_win", "closed"],
+  ["D-1009", "Kestrel Insurance", "Marco Silva", "hannah-kim", 2, 180000, "Q1", "Follow-up AI workshop", -8, "discovery", "pipeline"],
+  ["D-1010", "Pacific Media Group", "Ben Harris", null, 3, 410000, "Q1", "Customer asked for a POC proposal", -12, "solution_design", "upside"],
+  ["D-1011", "Metro Health", "Anna Webb", null, 2, 230000, "Q1", "Initial discovery call held", -17, "discovery", "pipeline"],
+  ["D-1012", "Harbour Bank (Wealth)", "Grace Liu", "priya-nair", 2, 200000, "Q2", "Intro to wealth platform team", -26, "discovery", "pipeline"],
+  ["D-1013", "Outback Outdoors", "Liam Ford", "liam-oconnor", 1, 60000, "Q2", "Qualify budget", -40, "discovery", "pipeline"],
+  ["D-1014", "Aurora Logistics", "Tama Ngata", "priya-nair", 3, 330000, "Q1", "Agent POC success criteria", -5, "technical_validation", "strong_upside"],
 ] as const;
 
 const retention = [
@@ -213,8 +215,8 @@ async function main() {
   for (const [personId, goal, target, next, due, status] of devPlans) {
     await sql`insert into dev_plans ${sql({ person_id: personId, goal, target_level: target, next_step: next, due_on: day(due), status })}`;
   }
-  for (const [id, account, ae, saId, stage, acv, quarter, next, nextOn, techWin] of deals) {
-    await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: quarter, next_step: next, next_step_on: day(nextOn), tech_win: techWin })}`;
+  for (const [id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast] of deals) {
+    await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: quarter, next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })}`;
   }
   for (const [personId, risk, reason, plan] of retention) {
     await sql`insert into retention_risks ${sql({ person_id: personId, risk, reason, action_plan: plan, updated_by: MANAGER })}`;
