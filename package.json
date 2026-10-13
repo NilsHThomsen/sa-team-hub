@@ -57,6 +57,7 @@
     "@types/node": "24.x",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
+    "just-bash": "^3.6.0",
     "typescript": "6.0.3"
   },
   "engines": {
