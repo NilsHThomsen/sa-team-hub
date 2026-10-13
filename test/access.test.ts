@@ -13,11 +13,13 @@ import {
   listPromotionCases,
   listRetentionRisks,
   saveDigest,
+  updateDealNextStep,
+  findDeal,
   setRetentionRisk,
   skillGaps,
 } from "../agent/lib/data";
 import { db } from "../agent/lib/db";
-import { managerConfirms, managerOnly } from "../agent/lib/policies";
+import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
 
 const manager: Actor = { kind: "user", personId: "jordan-hayes", name: "Jordan Hayes", role: "manager" };
 const priya: Actor = { kind: "user", personId: "priya-nair", name: "Priya Nair", role: "ic" };
@@ -114,5 +116,36 @@ describe("eve caller mapping and approval policies", () => {
     assert.equal(((await managerOnly(session(icAuth))) as { type: string }).type, "denied");
     assert.equal(await managerConfirms(session(mgrAuth)), "user-approval");
     assert.equal(((await managerConfirms(session(null))) as { type: string }).type, "denied");
+  });
+});
+
+describe("CRM next-step updates", () => {
+  test("an IC can update a deal they cover, once per tool call", async () => {
+    const key = `t-${Date.now()}-deal`;
+    const first = await updateDealNextStep(priya, { dealId: "D-1014", nextStep: "Commercial proposal with Tama on Friday", techWin: true }, key);
+    const replay = await updateDealNextStep(priya, { dealId: "D-1014", nextStep: "Commercial proposal with Tama on Friday", techWin: true }, key);
+    assert.equal(first.duplicate, false);
+    assert.equal(replay.duplicate, true);
+    assert.equal(first.tech_win, true);
+    const [{ count }] = await db()<{ count: number }[]>`select count(*)::int as count from deal_updates where idempotency_key = ${key}`;
+    assert.equal(count, 1);
+  });
+
+  test("an IC cannot update a colleague's deal; a manager can", async () => {
+    await assert.rejects(updateDealNextStep(priya, { dealId: "D-1003", nextStep: "Not mine to change" }, `t-${Date.now()}-x`), AccessDenied);
+    const r = await updateDealNextStep(manager, { dealId: "D-1003", nextStep: "Shortlist decision due 7 Nov" }, `t-${Date.now()}-m`);
+    assert.equal(r.tech_win, false); // untouched when techWin is not given
+  });
+
+  test("exact account names win over partial matches", async () => {
+    assert.equal((await findDeal("Harbour Bank"))?.id, "D-1001");
+    assert.equal((await findDeal("wealth"))?.id, "D-1012");
+  });
+
+  test("CRM writes need confirmation and a signed-in person", async () => {
+    const session = (auth: object | null) => ({ session: { auth: { current: auth } } }) as never;
+    const icAuth = { authenticator: "sa-team-hub", principalId: "priya-nair", principalType: "user", attributes: { role: "ic", name: "Priya Nair" } };
+    assert.equal(await signedInConfirms(session(icAuth)), "user-approval");
+    assert.equal(((await signedInConfirms(session({ authenticator: "app", principalId: "eve:app", principalType: "runtime", attributes: {} }))) as { type: string }).type, "denied");
   });
 });

@@ -11,7 +11,7 @@ Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation
 | Achievements Doc | Team wins (managers) or your own (ICs) | `log_achievement`: "Log a win: I ran the Next.js 16 migration workshop for Acme" |
 | Skills Matrix | Product depth, certifications, enablement, gaps against next quarter's needs | `find_skill_gaps`, `get_person_profile` |
 | Development Plans | Goals, next steps, overdue flags | Read via profile |
-| Deal Coverage | Stage 2+ coverage, stale next steps, missing technical wins, overloaded SAs | `review_deal_coverage` |
+| Deal Coverage | Stage 2+ coverage, stale next steps, missing technical wins, overloaded SAs | `review_deal_coverage`, `update_deal_next_step` (SAs update their own deals, confirm before saving, logged in `deal_updates`) |
 | Talent (managers only) | Retention risk, promotion cases, succession, warm bench | `get_talent_overview`, `update_retention_risk` (asks to confirm), `draft_promotion_case` (workflow) |
 | Weekly digest | Shown on the home page | `friday-digest` schedule, Fridays 06:00 UTC |
 

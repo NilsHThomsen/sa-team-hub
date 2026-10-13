@@ -83,6 +83,18 @@ create table if not exists deals (
   tech_win      boolean not null default false
 );
 
+-- CRM change log: every next-step update made through the agent, with who made it.
+-- idempotency_key is the tool call id, so a replayed step logs (and updates) once.
+create table if not exists deal_updates (
+  id              serial primary key,
+  deal_id         text not null references deals(id) on delete cascade,
+  next_step       text not null,
+  tech_win        boolean,
+  updated_by      text not null references people(id),
+  idempotency_key text not null unique,
+  created_at      timestamptz not null default now()
+);
+
 -- ---------- Manager-only tables ----------
 
 create table if not exists retention_risks (

@@ -24,3 +24,14 @@ export const managerConfirms: ApprovalPolicy = (ctx) =>
   callerIsManager(ctx)
     ? "user-approval"
     : { type: "denied", reason: "Only managers can make this change. Do not retry; tell the user it is restricted." };
+
+/** Any signed-in team member, but they confirm each call first (writes that would sync to the CRM). */
+export const signedInConfirms: ApprovalPolicy = (ctx) => {
+  try {
+    return actorFromAuth(ctx.session.auth.current).kind === "user"
+      ? "user-approval"
+      : { type: "denied", reason: "Only a signed-in team member can update the CRM." };
+  } catch {
+    return { type: "denied", reason: "Only a signed-in team member can update the CRM." };
+  }
+};

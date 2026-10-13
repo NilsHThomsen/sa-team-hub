@@ -5,6 +5,7 @@ export function examplePrompts(role: Role): string[] {
   return role === "manager"
     ? [
         "Which deals need attention this week?",
+        "Update Dept. of Transport: panel submission is in, shortlist decision due 7 Nov.",
         "Where are our biggest skills gaps for next quarter, and who is closest to closing them?",
         "Log a win for Hannah Kim: she ran the Kestrel Insurance AI workshop yesterday with 12 attendees.",
         "Draft a promotion case for Priya Nair to Principal SA.",
@@ -12,6 +13,7 @@ export function examplePrompts(role: Role): string[] {
       ]
     : [
         "Log a win: I presented the Harbour Bank architecture at the APJ field call today.",
+        "Update Aurora Logistics: POC success criteria signed off, so the technical win is secured. Next step is the commercial proposal with Tama on Friday.",
         "What skills should I focus on next quarter?",
         "How is my development plan tracking?",
         "What is Tom Becker's retention risk?",

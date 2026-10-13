@@ -262,6 +262,56 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
   return { deals: visible, summary };
 }
 
+/** Finds an open deal by id or account name. Errors if the name matches more than one. */
+export async function findDeal(query: string): Promise<{ id: string; account: string; sa_id: string | null } | null> {
+  const rows = await db()<{ id: string; account: string; sa_id: string | null }[]>`
+    select id, account, sa_id from deals
+    where stage < 5 and (id = ${query} or account ilike ${"%" + query + "%"})
+    order by account`;
+  // An exact id or account name wins over partial matches ("Harbour Bank" vs "Harbour Bank (Wealth)").
+  const exact = rows.find((r) => r.id === query || r.account.toLowerCase() === query.toLowerCase());
+  if (exact) return exact;
+  if (rows.length > 1) throw new Error(`"${query}" matches ${rows.map((r) => r.account).join(", ")}. Which one?`);
+  return rows[0] ?? null;
+}
+
+/**
+ * Updates a deal's next step (and optionally its technical-win flag), the way an
+ * SA would in the CRM. ICs can update only deals they cover; managers any deal.
+ * The change is logged in deal_updates with the caller and the tool call id, so a
+ * replayed step neither double-logs nor re-dates the next step.
+ */
+export async function updateDealNextStep(
+  actor: Actor,
+  input: { dealId: string; nextStep: string; techWin?: boolean },
+  idempotencyKey: string,
+): Promise<{ deal_id: string; account: string; next_step: string; tech_win: boolean; next_step_on: string; duplicate: boolean }> {
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can update the CRM.");
+  const sql = db();
+  return sql.begin(async (tx) => {
+    const [deal] = await tx<{ id: string; account: string; sa_id: string | null }[]>`
+      select id, account, sa_id from deals where id = ${input.dealId} for update`;
+    if (!deal) throw new Error(`No deal with id "${input.dealId}".`);
+    if (actor.role === "ic" && deal.sa_id !== actor.personId) {
+      throw new AccessDenied(`You can only update deals you cover. Ask the SA on ${deal.account} or your manager.`);
+    }
+    const logged = await tx`
+      insert into deal_updates (deal_id, next_step, tech_win, updated_by, idempotency_key)
+      values (${deal.id}, ${input.nextStep}, ${input.techWin ?? null}, ${actor.personId}, ${idempotencyKey})
+      on conflict (idempotency_key) do nothing
+      returning id`;
+    if (logged.length > 0) {
+      await tx`
+        update deals set next_step = ${input.nextStep}, next_step_on = current_date,
+          tech_win = coalesce(${input.techWin ?? null}::boolean, tech_win)
+        where id = ${deal.id}`;
+    }
+    const [row] = await tx<{ next_step: string; tech_win: boolean; next_step_on: string }[]>`
+      select next_step, tech_win, to_char(next_step_on, 'YYYY-MM-DD') as next_step_on from deals where id = ${deal.id}`;
+    return { deal_id: deal.id, account: deal.account, ...row, duplicate: logged.length === 0 };
+  });
+}
+
 // ---------- Manager-only: retention, succession, bench ----------
 
 export interface RetentionRisk {

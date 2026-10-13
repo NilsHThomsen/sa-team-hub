@@ -177,7 +177,7 @@ async function main() {
   await sql.unsafe(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
 
   if (reset) {
-    await sql`truncate digests, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate digests, deal_updates, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
