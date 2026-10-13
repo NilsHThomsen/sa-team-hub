@@ -16,8 +16,9 @@
     "build:eve": "eve build",
     "dev:eve": "eve dev",
     "start:eve": "eve start",
-    "db:setup": "node db/setup.ts",
-    "db:reset": "node db/setup.ts --reset"
+    "db:setup": "node --env-file-if-exists=.env.local db/setup.ts",
+    "db:reset": "node --env-file-if-exists=.env.local db/setup.ts --reset",
+    "test": "tsx --env-file-if-exists=.env.local --test test/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-use-controllable-state": "1.2.2",
@@ -58,6 +59,7 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "just-bash": "^3.6.0",
+    "tsx": "^4.23.15",
     "typescript": "6.0.3"
   },
   "engines": {
