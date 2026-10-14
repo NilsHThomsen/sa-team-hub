@@ -51,7 +51,7 @@ export default async function SkillsPage({ searchParams }: { readonly searchPara
           <Section note={SKILL_LEVELS.join(" → ")} title="Product skills">
             <Table head={["Person", ...productNames]}>
               {ics.map((p) => (
-                <tr className={cn(p.id === viewer.personId && "bg-amber-50/60")} key={p.id}>
+                <tr className={cn(p.id === viewer.personId && "bg-amber-50/60 dark:bg-amber-400/10")} key={p.id}>
                   <Td className="whitespace-nowrap font-medium">{p.name}</Td>
                   {productNames.map((name) => {
                     const level = find(p.id, "product", name)?.level ?? 0;

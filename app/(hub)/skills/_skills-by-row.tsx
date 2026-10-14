@@ -3,7 +3,13 @@ import { SKILL_LEVEL_MEANING, SKILL_LEVELS, skillLevelName } from "@/agent/lib/s
 import { cn } from "@/lib/utils";
 
 /** Level badge colours for the person-per-row layout (?layout=by-person). */
-export const LEVEL_STYLE = ["bg-slate-50 text-slate-400", "bg-slate-100", "bg-sky-100", "bg-sky-300", "bg-sky-600 text-white"];
+export const LEVEL_STYLE = [
+  "bg-slate-50 text-slate-400 dark:bg-slate-800 dark:text-slate-500",
+  "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+  "bg-sky-100 text-sky-900 dark:bg-sky-900 dark:text-sky-100",
+  "bg-sky-300 text-sky-950",
+  "bg-sky-600 text-white",
+];
 
 type Status = NonNullable<SkillRow["status"]>;
 // Legend order: furthest along first.
