@@ -48,21 +48,20 @@ const people = [
   { id: "daniel-okafor", name: "Daniel Okafor", title: "Senior Solutions Architect", level: "SSA", role: "ic", segment: "Strategic", location: "Brisbane", start: "2022-10-03" },
 ];
 
-// Vercel product areas an SA demos and proves: Next.js, the CDN, Fluid compute, the AI Cloud
-// (AI SDK, AI Gateway, Sandbox, Workflows), the Firewall and Observability.
-const productSkills = ["Next.js & Rendering", "Caching & CDN", "AI SDK & AI Gateway", "Firewall & Security", "Fluid Compute & Functions", "Observability"];
+// Vercel product areas an SA demos and proves.
+const productSkills = ["Next.js & Rendering", "Caching & CDN", "AI Cloud (AI SDK, Gateway, Sandbox, Workflows)", "Firewall & Security", "Fluid Compute & Functions", "Observability", "v0"];
 // Levels per person in productSkills order: 0 None, 1 Elevator, 2 Present, 3 Demo, 4 Prove (see agent/lib/skill-levels.ts).
 const levels: Record<string, number[]> = {
-  "priya-nair": [4, 3, 3, 4, 3, 3],
-  "tom-becker": [2, 2, 1, 3, 2, 2],
-  "aiko-tanaka": [4, 4, 4, 3, 4, 3],
-  "liam-oconnor": [3, 2, 2, 1, 2, 1],
-  "sofia-rossi": [3, 3, 2, 2, 4, 2],
-  "ravi-menon": [3, 3, 2, 4, 3, 3],
-  "hannah-kim": [2, 1, 2, 1, 0, 1],
-  "jack-wilson": [3, 4, 3, 2, 3, 4],
-  "mei-chen": [3, 2, 3, 2, 1, 2],
-  "daniel-okafor": [4, 3, 2, 3, 4, 3],
+  "priya-nair": [4, 3, 3, 4, 3, 3, 3],
+  "tom-becker": [2, 2, 1, 3, 2, 2, 2],
+  "aiko-tanaka": [4, 4, 4, 3, 4, 3, 4],
+  "liam-oconnor": [3, 2, 2, 1, 2, 1, 2],
+  "sofia-rossi": [3, 3, 2, 2, 4, 2, 3],
+  "ravi-menon": [3, 3, 2, 4, 3, 3, 2],
+  "hannah-kim": [2, 1, 2, 1, 0, 1, 3],
+  "jack-wilson": [3, 4, 3, 2, 3, 4, 4],
+  "mei-chen": [3, 2, 3, 2, 1, 2, 3],
+  "daniel-okafor": [4, 3, 2, 3, 4, 3, 2],
 };
 
 type Status = "not_started" | "next_focus" | "in_progress" | "complete";
@@ -97,7 +96,7 @@ const enablement: Record<string, Status[]> = {
 };
 
 const skillNeeds = [
-  { category: "product", name: "AI SDK & AI Gateway", min_level: 3, min_people: 5, reason: "Agent and AI Cloud deals make up a growing share of next quarter's APJ pipeline." },
+  { category: "product", name: "AI Cloud (AI SDK, Gateway, Sandbox, Workflows)", min_level: 3, min_people: 5, reason: "Agent and AI Cloud deals make up a growing share of next quarter's APJ pipeline." },
   { category: "product", name: "Caching & CDN", min_level: 3, min_people: 5, reason: "Most migration POCs are judged on Core Web Vitals and cache hit ratio." },
   { category: "product", name: "Firewall & Security", min_level: 3, min_people: 4, reason: "FSI and Public Sector security reviews need a deep SA in the room." },
   { category: "certification", name: "AWS Solutions Architect Professional", min_level: null, min_people: 2, reason: "Business plan target: at least 2 people certified per hyperscaler." },
@@ -242,7 +241,8 @@ async function renameEsatToPsd() {
 
 // Product skills renamed to Vercel product areas. Already-seeded databases get the same rename.
 const SKILL_RENAMES = [
-  ["AI SDK & Agents", "AI SDK & AI Gateway"],
+  ["AI SDK & Agents", "AI Cloud (AI SDK, Gateway, Sandbox, Workflows)"],
+  ["AI SDK & AI Gateway", "AI Cloud (AI SDK, Gateway, Sandbox, Workflows)"],
   ["Security & Compliance", "Firewall & Security"],
   ["Migrations", "Fluid Compute & Functions"],
 ] as const;
@@ -250,6 +250,15 @@ async function renameProductSkills() {
   for (const [from, to] of SKILL_RENAMES) {
     await sql`update skills set name = ${to} where category = 'product' and name = ${from}`;
     await sql`update skill_needs set name = ${to} where category = 'product' and name = ${from}`;
+  }
+  // Product skills added later (v0) get each person's sample level, unless they already have one.
+  for (const [personId, ls] of Object.entries(levels)) {
+    for (const [i, name] of productSkills.entries()) {
+      await sql`insert into skills (person_id, category, name, level)
+        select ${personId}, 'product', ${name}, ${ls[i]}
+        where exists (select 1 from people where id = ${personId})
+          and not exists (select 1 from skills where person_id = ${personId} and category = 'product' and name = ${name})`;
+    }
   }
 }
 
