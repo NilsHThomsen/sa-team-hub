@@ -21,19 +21,21 @@ export function SkillsByRow({ people, skills, viewerId }: { readonly people: rea
     { title: "Soft skills", category: "enablement" },
   ];
 
+  const namesRow = (
+    <tr>
+      <th className="sticky left-0 min-w-48 bg-muted px-3 py-2 font-medium">Skill</th>
+      {people.map((p) => (
+        <th className={cn("px-2 py-2 text-center font-medium", mine(p.id))} key={p.id}>
+          {p.name}
+        </th>
+      ))}
+    </tr>
+  );
+
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full text-sm">
-        <thead className="border-b bg-muted/50 text-left text-muted-foreground text-xs">
-          <tr>
-            <th className="sticky left-0 min-w-48 bg-muted px-3 py-2 font-medium">Skill</th>
-            {people.map((p) => (
-              <th className={cn("px-2 py-2 text-center font-medium", mine(p.id))} key={p.id}>
-                {p.name}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <thead className="border-b bg-muted/50 text-left text-muted-foreground text-xs">{namesRow}</thead>
         {sections.map((section) => (
           <tbody className="border-t-4 border-muted" key={section.category}>
             <tr className="bg-muted/40">
@@ -72,6 +74,8 @@ export function SkillsByRow({ people, skills, viewerId }: { readonly people: rea
             ))}
           </tbody>
         ))}
+        {/* Names again at the bottom, so you don't scroll back up to see whose column it is. */}
+        <tfoot className="border-t-4 border-muted bg-muted/50 text-left text-muted-foreground text-xs">{namesRow}</tfoot>
       </table>
     </div>
   );
