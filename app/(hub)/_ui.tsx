@@ -103,9 +103,9 @@ export function Table({ head, children }: { readonly head: readonly string[]; re
   );
 }
 
-export function Td({ children, className, colSpan }: { readonly children?: ReactNode; readonly className?: string; readonly colSpan?: number }) {
+export function Td({ children, className, colSpan, rowSpan }: { readonly children?: ReactNode; readonly className?: string; readonly colSpan?: number; readonly rowSpan?: number }) {
   return (
-    <td className={cn("px-3 py-2 align-top", className)} colSpan={colSpan}>
+    <td className={cn("px-3 py-2 align-top", className)} colSpan={colSpan} rowSpan={rowSpan}>
       {children}
     </td>
   );

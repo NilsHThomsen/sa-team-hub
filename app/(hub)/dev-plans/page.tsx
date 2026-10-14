@@ -1,6 +1,7 @@
 import { CAREER_GOALS } from "@/agent/lib/career-goals";
 import { type CareerGoalRow, type DevPlan, listCareerGoals, listDevPlans, listPeople } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
+import { cn } from "@/lib/utils";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
 import { PageHeader, Pill, Section, Table, Td } from "../_ui";
@@ -41,10 +42,13 @@ export default async function DevPlansPage({ searchParams }: { readonly searchPa
 }
 
 function PlanRows({ goal, plans }: { readonly goal: CareerGoalRow; readonly plans: readonly DevPlan[] }) {
+  // Someone with several plans gets one Person and Career goal cell spanning all their rows.
+  const span = Math.max(plans.length, 1);
+  const align = span > 1 ? "align-middle" : undefined;
   const who = (
     <>
-      <Td className="whitespace-nowrap">{goal.person_name}</Td>
-      <Td>
+      <Td className={cn("whitespace-nowrap", align)} rowSpan={span}>{goal.person_name}</Td>
+      <Td className={align} rowSpan={span}>
         <div className="whitespace-nowrap">{goal.goal ?? <span className="text-muted-foreground">Not set</span>}</div>
         {goal.note ? <div className="mt-1 max-w-56 text-muted-foreground text-xs">{goal.note}</div> : null}
         {goal.updated_by_name ? (
@@ -67,7 +71,7 @@ function PlanRows({ goal, plans }: { readonly goal: CareerGoalRow; readonly plan
   }
   return plans.map((p, i) => (
     <tr key={p.id}>
-      {i === 0 ? who : <><Td /><Td /></>}
+      {i === 0 ? who : null}
       <Td>{p.goal}</Td>
       <Td>{p.next_step}</Td>
       <Td className="whitespace-nowrap text-muted-foreground">{p.due_on}</Td>
