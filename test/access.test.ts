@@ -42,6 +42,7 @@ import { wakeShoutoutWorkflow } from "../agent/lib/shoutouts";
 import { db } from "../agent/lib/db";
 import { DEFAULT_MODEL, primaryModel } from "../agent/lib/models";
 import { actionItems } from "../agent/lib/actions";
+import { editAchievement, setDevPlan, setSkill, setSkillNeed, upsertCandidate, upsertDeal, upsertPerson, upsertSuccession } from "../agent/lib/edits";
 import { postDigestToSlack } from "../agent/lib/slack";
 import { slackAuthFor } from "../agent/lib/slack-auth";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
@@ -439,5 +440,64 @@ describe("fiscal quarters", () => {
     assert.equal(currentQuarter(new Date("2026-11-01")), "FY27 Q4");
     assert.equal(currentQuarter(new Date("2027-01-31")), "FY27 Q4");
     assert.equal(currentQuarter(new Date("2027-02-01")), "FY28 Q1");
+  });
+});
+
+describe("edit tools", () => {
+  // The edit functions return either the saved row or { removed }; tests read the row.
+  const row = <T>(r: T) => r as Extract<T, { name: string }> & Record<string, unknown>;
+  after(async () => {
+    const sql = db();
+    await sql`delete from skills where name = 'Test Skill'`;
+    await sql`delete from skill_needs where name = 'Test Skill'`;
+    await sql`delete from deals where account = 'Test Account'`;
+    await sql`delete from succession where candidate = 'Test Candidate'`;
+    await sql`delete from candidates where name = 'Test Candidate'`;
+    await sql`delete from people where id = 'test-person'`;
+  });
+
+  test("SAs change their own skills and plan, not a colleague's", async () => {
+    const mine = row(await setSkill(priya, { personId: "priya-nair", category: "enablement", name: "Test Skill", status: "complete" }));
+    assert.equal(mine.status, "complete");
+    assert.ok(mine.completed_on); // completing without a date records today
+    await assert.rejects(setSkill(priya, { personId: "hannah-kim", category: "product", name: "Test Skill", level: 4 }), AccessDenied);
+    assert.equal(row(await setSkill(manager, { personId: "hannah-kim", category: "product", name: "Test Skill", level: 2 })).level, 2);
+    assert.deepEqual(await setSkill(manager, { personId: "hannah-kim", category: "product", name: "Test Skill", remove: true }), { removed: true });
+
+    await assert.rejects(setDevPlan(priya, { personId: "tom-becker", status: "done" }), AccessDenied);
+    const before = (await listDevPlans(priya))[0];
+    const plan = await setDevPlan(priya, { personId: "priya-nair", status: "at_risk" });
+    assert.equal(plan.status, "at_risk");
+    await setDevPlan(priya, { personId: "priya-nair", status: before.status });
+  });
+
+  test("SAs edit only their own achievements", async () => {
+    const [theirs] = await listAchievements(manager, { days: 365 }).then((rows) => rows.filter((a) => a.person_id === "tom-becker"));
+    await assert.rejects(editAchievement(priya, { id: theirs.id, title: "Not mine" }), AccessDenied);
+  });
+
+  test("deals, coverage needs, succession, the bench and people are manager only", async () => {
+    await assert.rejects(upsertDeal(priya, { account: "Test Account", ae: "Test AE", stage: 2, acvUsd: 1, closeQuarter: "FY27 Q4" }), AccessDenied);
+    await assert.rejects(setSkillNeed(priya, { category: "product", name: "Test Skill", minPeople: 1, minLevel: 2, reason: "Testing the rule" }), AccessDenied);
+    await assert.rejects(upsertSuccession(priya, { roleName: "Test", candidate: "Test Candidate", readiness: "one_year", pros: "Tested", cons: "Tested" }), AccessDenied);
+    await assert.rejects(upsertCandidate(app, { name: "Test Candidate", currentJob: "Tester", focus: "Tests", source: "Test" }), AccessDenied);
+    await assert.rejects(upsertPerson(priya, { name: "Test Person", title: "SA", level: "SA1", segment: "Enterprise", location: "Sydney" }), AccessDenied);
+
+    const deal = await upsertDeal(manager, { account: "Test Account", ae: "Test AE", stage: 2, acvUsd: 100000, closeQuarter: "FY27 Q4", saId: "hannah-kim" });
+    assert.equal(deal.created, true);
+    const moved = await upsertDeal(manager, { id: deal.id, saId: null, stage: 3 });
+    assert.equal(moved.sa, null);
+    assert.equal(moved.stage, 3);
+
+    assert.equal(row(await setSkillNeed(manager, { category: "product", name: "Test Skill", minPeople: 2, minLevel: 3, reason: "Testing the rule" })).min_people, 2);
+    const successor = await upsertSuccession(manager, { roleName: "Test role", candidate: "Test Candidate", personId: "aiko-tanaka", readiness: "one_year", pros: "Tested", cons: "Tested" });
+    assert.ok("kind" in successor && successor.kind === "internal");
+    const bench = await upsertCandidate(manager, { name: "Test Candidate", currentJob: "Tester", focus: "Tests", source: "Test" });
+    assert.ok("id" in bench);
+    const engaged = await upsertCandidate(manager, { id: bench.id, stage: "engaged" });
+    assert.ok("stage" in engaged && engaged.stage === "engaged");
+    const person = await upsertPerson(manager, { name: "Test Person", title: "Solutions Architect", level: "SA1", segment: "Enterprise", location: "Sydney" });
+    assert.equal(person.id, "test-person");
+    assert.equal(person.role, "ic");
   });
 });

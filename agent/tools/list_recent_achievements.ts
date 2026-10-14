@@ -12,6 +12,6 @@ export default defineTool({
   label: { start: ({ days }) => `List wins from the last ${days} days` },
   async execute({ days }, ctx) {
     const rows = await listAchievements(actorFromAuth(ctx.session.auth.current), { days });
-    return rows.map(({ person_name, occurred_on, category, title, impact }) => ({ person: person_name, occurred_on, category, title, impact }));
+    return rows.map(({ id, person_name, occurred_on, category, title, impact }) => ({ id, person: person_name, occurred_on, category, title, impact }));
   },
 });
