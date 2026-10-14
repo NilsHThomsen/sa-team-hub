@@ -4,6 +4,10 @@ A live dashboard and agent for running a Solutions Architect team: achievements,
 
 Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation, **AI Gateway** for model routing and spend tracking, and **Workflows** for the durable promotion-case flow. Apart from the manager (the author), all people and data are fictional.
 
+## Try it
+
+Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
+
 ## What it does
 
 | Area | Dashboard | Agent |
@@ -63,7 +67,3 @@ The demo sign-in (pick a person plus a shared password) stands in for SSO. Swapp
 - Tool writes are idempotent: `log_achievement` uses the tool call id as a unique key, so a replayed step cannot double-log, and the promotion workflow saves on its call id.
 - The promotion case is a durable Workflow: each step is checkpointed, and the manager's approval can arrive hours later without holding a function open.
 - AI Gateway falls back to a second provider if the primary is down, tags every call with `app:sa-team-hub` and `feature:*` for spend reporting, and each session has a cost cap (`maxTokenCostUsdPerSession: 1`).
-
-## Try it
-
-Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
