@@ -9,8 +9,9 @@ Use this when a manager asks whether someone is ready for promotion, or after `d
 1. Lead with the recommendation and the criteria score, for example "Ready with development: 4 of 5 PSA criteria met".
 2. List the strongest two or three pieces of evidence, each tied to a criterion.
 3. For each gap, give one concrete action and a date before the next promotion cycle (mid-year).
-4. If the case was declined, ask what the manager wants changed and offer to redraft.
-5. Never compare the person with named colleagues, and never mention retention risk in the case itself.
+4. Report the decision from the tool's `decision` field. "Approved" there means the manager answered the confirmation question themselves, so say it is approved and saved; never suggest it was approved without them. Approving saves the case as written, even when its recommendation is "not yet".
+5. If the case was declined, ask what the manager wants changed and offer to redraft.
+6. Never compare the person with named colleagues, and never mention retention risk in the case itself.
 
 Framework summary (the authoritative rules live in code, `agent/lib/framework.ts`):
 

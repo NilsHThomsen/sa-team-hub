@@ -78,10 +78,21 @@ export default defineWorkflowTool({
         ? await decideCase(caseId, answer.optionId === "approve" ? "approved" : "rejected", answer.responder?.principalId ?? null)
         : "pending_approval";
 
+    // Say who decided and how. The question is answered outside the specialist's own conversation,
+    // so without this it can mistake the manager's answer for an approval nobody asked for.
+    const chosen = answer.status === "answered" ? (answer.optionId === "approve" ? "approved" : "rejected") : null;
+    const decision =
+      chosen === null
+        ? "No answer in the chat yet; the manager can approve or decline it on the Talent page or in Action items."
+        : status === chosen
+          ? `The manager ${chosen === "approved" ? "approved" : "declined"} this case themselves just now, by answering the confirmation question in the chat.`
+          : `It had already been ${status === "rejected" ? "declined" : status} on the dashboard before the chat answer arrived, so that decision stands.`;
+
     return {
       saved: true,
       caseId,
       status: status === "rejected" ? "declined" : status === "pending_approval" ? "waiting for approval on the dashboard" : status,
+      decision,
       person: evidence.person.name,
       targetLevel: level,
       criteriaMet: `${score.met}/${score.total}`,
