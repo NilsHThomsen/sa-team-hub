@@ -59,4 +59,3 @@ The demo sign-in stands in for SSO; swapping in Okta or Sign in with Vercel only
 - A retried step can't log the same win or save the same promotion case twice.
 - A promotion case can wait days for the manager's decision without holding anything open.
 - AI Gateway switches to a second provider if the first is down, tags spend by feature, and each chat has a $1 cost cap.
-- Every deploy brings the database up to date automatically.
