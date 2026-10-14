@@ -4,7 +4,6 @@ import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
 import { PageHeader, Pill, Section, Table, Td } from "../_ui";
-import { CareerGoalPicker } from "./_career-goal-picker";
 
 const NOT_SET = "Not set";
 
@@ -23,7 +22,7 @@ export default async function DevPlansPage({ searchParams }: { readonly searchPa
   return (
     <>
       <PageHeader
-        subtitle={manager ? "Career goals and development plans for the team. Change a goal from the dropdown." : "Your career goal and development plan. Change your goal from the dropdown."}
+        subtitle={manager ? "Career goals and development plans for the team. Ask the agent to change a goal or plan." : "Your career goal and development plan. Ask the agent to change your goal or plan."}
         title="Development Plans"
         actions={manager ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
       />
@@ -46,11 +45,11 @@ function PlanRows({ goal, plans }: { readonly goal: CareerGoalRow; readonly plan
     <>
       <Td className="whitespace-nowrap">{goal.person_name}</Td>
       <Td>
-        <CareerGoalPicker goal={goal.goal} personId={goal.person_id} personName={goal.person_name} />
+        <div className="whitespace-nowrap">{goal.goal ?? <span className="text-muted-foreground">Not set</span>}</div>
         {goal.note ? <div className="mt-1 max-w-56 text-muted-foreground text-xs">{goal.note}</div> : null}
         {goal.updated_by_name ? (
           <div className="mt-1 text-muted-foreground text-xs">
-            Set by {goal.updated_by_name}, {goal.updated_at}
+            Set by {goal.updated_by_name}, <span className="whitespace-nowrap">{goal.updated_at}</span>
           </div>
         ) : null}
       </Td>
