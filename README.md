@@ -64,28 +64,6 @@ The demo sign-in (pick a person plus a shared password) stands in for SSO. Swapp
 - The promotion case is a durable Workflow: each step is checkpointed, and the manager's approval can arrive hours later without holding a function open.
 - AI Gateway falls back to a second provider if the primary is down, tags every call with `app:sa-team-hub` and `feature:*` for spend reporting, and each session has a cost cap (`maxTokenCostUsdPerSession: 1`).
 
-## Run it locally
-
-Requires Node 24 and Postgres.
-
-```bash
-npm install
-cp .env.example .env.local     # set AUTH_SECRET and AI_GATEWAY_API_KEY
-npm run db:setup               # creates tables and seeds the fictional team (db:reset to start over)
-npm run dev                    # dashboard on http://localhost:3000
-npm test                       # access-rule tests against the seeded database
-```
+## Try it
 
 Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
-
-## Deploy to Vercel
-
-1. Import the repo into a Vercel project.
-2. Add **Neon** from the Vercel Marketplace (sets `DATABASE_URL`).
-3. Set `AUTH_SECRET` (32+ characters) and `DEMO_PASSWORD`.
-4. Seed once: `vercel env pull .env.local && npm run db:setup`.
-5. Deploy. AI Gateway authenticates with the project's OIDC token, so no model keys are needed.
-
-## Built with AI assistance
-
-I used Claude (Claude Code) to help write this code. The design, the data model and the access rules are mine to explain.
