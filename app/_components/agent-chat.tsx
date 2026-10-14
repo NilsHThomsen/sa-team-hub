@@ -2,8 +2,16 @@
 
 import type { UserContent } from "ai";
 import { useEveAgent } from "eve/react";
-import { AlertCircleIcon, ArrowLeftIcon, BrainIcon, PlusIcon, SquareIcon } from "lucide-react";
-import { useState } from "react";
+import {
+  AlertCircleIcon,
+  ArrowLeftIcon,
+  BrainIcon,
+  Maximize2Icon,
+  PlusIcon,
+  SquareIcon,
+  XIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -32,11 +40,14 @@ export function AgentChat({
   sessionId,
   sessionless = false,
   examples = [],
+  panel,
 }: {
   readonly sessionId?: string;
   readonly sessionless?: boolean;
   /** Canned prompts for the empty state, chosen per role by the server page. */
   readonly examples?: readonly string[];
+  /** Render inside the dashboard's pop-up panel instead of as a full page. */
+  readonly panel?: ChatPanelControls;
 }) {
   const [cancellationError, setCancellationError] = useState<string>();
   const [hasInputText, setHasInputText] = useState(false);
@@ -51,7 +62,7 @@ export function AgentChat({
           },
     resume: sessionId !== undefined,
     onSessionChange(session) {
-      if (sessionId === undefined && session !== undefined) {
+      if (sessionId === undefined && session !== undefined && panel === undefined) {
         // Framework routers (Next.js, TanStack Router) patch window.history; navigating
         // through them would remount this route and detach the active stream.
         History.prototype.replaceState.call(
@@ -79,6 +90,14 @@ export function AgentChat({
   const hasConversationContent = sessionless || !isEmpty || errorMessage !== undefined;
   const showConversationLayout = isResuming || hasConversationContent;
   const activeSessionId = sessionId ?? agent.session?.sessionId;
+
+  // In the panel, refresh the dashboard behind it when a turn settles, so changes the agent made show up.
+  const wasBusy = useRef(false);
+  const onTurnSettled = panel?.onTurnSettled;
+  useEffect(() => {
+    if (wasBusy.current && !isBusy) onTurnSettled?.();
+    wasBusy.current = isBusy;
+  }, [isBusy, onTurnSettled]);
   // Answers are accepted while work runs; the server's settlement closes each request.
   const canRespond = (requestId: string) =>
     !isResuming && agent.data.inputs[requestId]?.status === "open";
@@ -140,6 +159,93 @@ export function AgentChat({
     </PromptInput>
   );
 
+  const messages = (
+    <>
+      {agent.data.messages.map((message, index) =>
+        showPendingThinking && isPendingAssistantShell && message.id === lastMessage.id ? null : (
+          <AgentMessage
+            canRespond={canRespond}
+            isStreaming={agent.status === "streaming" && index === agent.data.messages.length - 1}
+            key={message.id}
+            message={message}
+            questionsFor={questionsFor}
+            onInputResponses={(inputResponses) => {
+              setCancellationError(undefined);
+              return agent.respond(inputResponses);
+            }}
+          />
+        ),
+      )}
+      {showPendingThinking ? <PendingThinking /> : null}
+      {errorMessage ? <ErrorMessage message={errorMessage} /> : null}
+    </>
+  );
+
+  const exampleButtons =
+    examples.length === 0 ? null : (
+      <div className="flex w-full flex-col gap-2">
+        {examples.map((example) => (
+          <button
+            className="rounded-lg border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+            disabled={isResuming}
+            key={example}
+            onClick={() => void agent.send(example)}
+            type="button"
+          >
+            {example}
+          </button>
+        ))}
+      </div>
+    );
+
+  if (panel !== undefined) {
+    return (
+      <div className="flex h-full flex-col bg-background text-foreground">
+        <div className="flex h-12 shrink-0 items-center gap-1 border-b px-3">
+          <span className="flex-1 truncate font-medium text-sm">{AGENT_NAME}</span>
+          {isEmpty ? null : (
+            <Button onClick={panel.onNewChat} size="sm" type="button" variant="ghost">
+              <PlusIcon className="size-4" />
+              <span className="font-normal text-sm">New chat</span>
+            </Button>
+          )}
+          {activeSessionId === undefined ? null : (
+            <a
+              aria-label="Open as full page"
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              href={`/s/${encodeURIComponent(activeSessionId)}`}
+              title="Open as full page"
+            >
+              <Maximize2Icon className="size-4" />
+            </a>
+          )}
+          <button
+            aria-label="Close"
+            className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={panel.onClose}
+            type="button"
+          >
+            <XIcon className="size-4" />
+          </button>
+        </div>
+        {isEmpty && errorMessage === undefined && !isResuming ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+            <p className="text-muted-foreground text-sm">
+              Ask about the team, log a win, find skills gaps or draft a promotion case.
+            </p>
+            {exampleButtons}
+          </div>
+        ) : (
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="gap-6 px-4 py-4">{messages}</ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+        )}
+        <div className="shrink-0 border-t p-3">{composer}</div>
+      </div>
+    );
+  }
+
   return (
     <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       <ChatHeader canStartNewChat={showConversationLayout && activeSessionId !== undefined} />
@@ -157,27 +263,7 @@ export function AgentChat({
         >
           <ConversationTopFade className="top-14" />
           <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 pt-20 pb-36 sm:px-6">
-            {agent.data.messages.map((message, index) =>
-              showPendingThinking &&
-              isPendingAssistantShell &&
-              message.id === lastMessage.id ? null : (
-                <AgentMessage
-                  canRespond={canRespond}
-                  isStreaming={
-                    agent.status === "streaming" && index === agent.data.messages.length - 1
-                  }
-                  key={message.id}
-                  message={message}
-                  questionsFor={questionsFor}
-                  onInputResponses={(inputResponses) => {
-                    setCancellationError(undefined);
-                    return agent.respond(inputResponses);
-                  }}
-                />
-              ),
-            )}
-            {showPendingThinking ? <PendingThinking /> : null}
-            {errorMessage ? <ErrorMessage message={errorMessage} /> : null}
+            {messages}
           </ConversationContent>
           <ConversationScrollButton />
         </Conversation>
@@ -200,25 +286,17 @@ export function AgentChat({
           </div>
         )}
         <div className="w-full">{composer}</div>
-        {showConversationLayout || examples.length === 0 ? null : (
-          <div className="flex w-full flex-col gap-2">
-            {examples.map((example) => (
-              <button
-                className="rounded-lg border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-                disabled={isResuming}
-                key={example}
-                onClick={() => void agent.send(example)}
-                type="button"
-              >
-                {example}
-              </button>
-            ))}
-          </div>
-        )}
+        {showConversationLayout ? null : exampleButtons}
       </div>
     </main>
   );
 }
+
+export type ChatPanelControls = {
+  readonly onClose: () => void;
+  readonly onNewChat: () => void;
+  readonly onTurnSettled: () => void;
+};
 
 function ComposerAction({
   hasInputText,

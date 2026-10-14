@@ -25,7 +25,7 @@ Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation
 Browser ──► Next.js 16 (App Router)
              ├─ proxy.ts           gate: valid session cookie or /login
              ├─ app/(hub)/*         dashboard pages (server components)
-             ├─ app/s               chat UI (useEveAgent)
+             ├─ app/s               chat UI (useEveAgent); "Ask the agent" opens it as a side panel on any page
              └─ /eve/v1/*  ──►  eve agent (withEve)
                                   ├─ channels/eve.ts   verifies the same cookie
                                   ├─ instructions.md   router: handles everyday asks, hands the rest to a specialist

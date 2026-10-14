@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
+import { examplePrompts } from "@/lib/examples";
 import { requireActor } from "@/lib/viewer";
 import { signOut } from "../login/actions";
+import { AskAgent } from "./_ask-agent";
 import { NavLinks } from "./_nav";
 
 export default async function HubLayout({ children }: { readonly children: ReactNode }) {
@@ -32,9 +34,7 @@ export default async function HubLayout({ children }: { readonly children: React
             <NavLinks items={nav} />
           </Suspense>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <Link className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground" href="/s">
-              Ask the agent
-            </Link>
+            <AskAgent examples={examplePrompts(viewer.role)} />
             <span className="text-muted-foreground">
               {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
             </span>
