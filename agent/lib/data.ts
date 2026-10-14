@@ -615,7 +615,7 @@ export const NINE_BOX_LEVELS = ["Low", "Medium", "High"] as const;
 /** Box names, indexed [potential - 1][performance - 1]. */
 export const NINE_BOX_NAMES = [
   ["Talent risk", "Effective", "Trusted professional"],
-  ["Inconsistent player", "Core player", "High performer"],
+  ["New/Inconsistent player", "Core player", "High performer"],
   ["Rough diamond", "Future star", "Star"],
 ] as const;
 
