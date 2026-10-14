@@ -150,6 +150,16 @@ create table if not exists retention_risks (
   updated_at    timestamptz not null default now()
 );
 
+-- 9-box (2P matrix): performance and potential, each 1 low / 2 medium / 3 high. Manager eyes only.
+create table if not exists talent_ratings (
+  person_id     text primary key references people(id),
+  performance   smallint not null check (performance between 1 and 3),
+  potential     smallint not null check (potential between 1 and 3),
+  note          text,
+  updated_by    text not null,
+  updated_at    timestamptz not null default now()
+);
+
 create table if not exists succession (
   id            bigserial primary key,
   role_name     text not null,               -- the role being covered, e.g. 'SA Manager, ANZ'

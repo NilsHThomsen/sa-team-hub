@@ -1,9 +1,10 @@
 import { isManager } from "@/agent/lib/actor";
-import { listCandidates, listPeople, listPromotionCases, listRetentionRisks, listSuccession } from "@/agent/lib/data";
+import { listCandidates, listPeople, listPromotionCases, listRetentionRisks, listSuccession, listTalentRatings } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
 import { ManagerOnly, PageHeader, Pill, Section, Table, Td } from "../_ui";
+import { NineBox } from "./_nine-box";
 
 export default async function TalentPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { actor } = await requireActor();
@@ -11,7 +12,8 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
   // The data functions would also throw AccessDenied: three layers, same rule.
   if (!isManager(actor)) return <ManagerOnly />;
 
-  const [allRisks, allSuccession, allCandidates, allCases, people, selected] = await Promise.all([
+  const [allRatings, allRisks, allSuccession, allCandidates, allCases, people, selected] = await Promise.all([
+    listTalentRatings(actor),
     listRetentionRisks(actor),
     listSuccession(actor),
     listCandidates(actor),
@@ -19,6 +21,10 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
     listPeople(),
     selectedPeople(searchParams),
   ]);
+  const ratings = byPeople(allRatings, selected, (r) => r.person_id);
+  const unrated = byPeople(people.filter((p) => p.role === "ic"), selected, (p) => p.id)
+    .filter((p) => !allRatings.some((r) => r.person_id === p.id))
+    .map((p) => p.name);
   const risks = byPeople(allRisks, selected, (r) => r.person_id);
   const cases = byPeople(allCases, selected, (c) => c.person_id);
   // Succession names candidates as text (some are external), so match on name.
@@ -31,9 +37,13 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
     <>
       <PageHeader
         actions={<PersonFilter people={people.filter((p) => p.role === "ic")} />}
-        subtitle="Manager eyes only: retention, promotion cases, succession and the warm bench."
+        subtitle="Manager eyes only: the 9-box, retention, promotion cases, succession and the warm bench."
         title="Talent"
       />
+
+      <Section note="Move someone by asking the agent; it asks you to confirm" title="9-box (2P matrix)">
+        <NineBox ratings={ratings} unrated={unrated} />
+      </Section>
 
       <Section note="Changes through the agent require your approval" title="Retention risk">
         <Table head={["Person", "Risk", "Why", "Action plan", "Updated"]}>

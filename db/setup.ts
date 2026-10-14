@@ -176,6 +176,26 @@ const retention = [
   ["daniel-okafor", "low", "Keen to move into management.", "Acting manager during leave; management training."],
 ] as const;
 
+// 9-box: [person, performance, potential, note], 1 low / 2 medium / 3 high.
+const talentRatings = [
+  ["priya-nair", 3, 3, "Carrying two strategic deals at once; ready for Principal."],
+  ["aiko-tanaka", 3, 2, "Deep expert and go-to architect; happy in the current scope."],
+  ["sofia-rossi", 3, 2, "Owns the migration playbook; consistently strong delivery."],
+  ["daniel-okafor", 2, 3, "Solid delivery and a strong pull towards leading people."],
+  ["mei-chen", 2, 3, "Fast ramp and strong customer feedback in her first months."],
+  ["hannah-kim", 1, 3, "Still ramping; early signals are very strong."],
+  ["jack-wilson", 2, 2, "Reliable; the Telco vertical is his chance to step up."],
+  ["ravi-menon", 2, 2, "Good work held back by limited deal flow."],
+  ["tom-becker", 2, 1, "Delivers well but wants to leave Public Sector."],
+  ["liam-oconnor", 1, 2, "Quieter quarter; certification and pipeline building under way."],
+] as const;
+
+async function seedTalentRatings() {
+  for (const [personId, performance, potential, note] of talentRatings) {
+    await sql`insert into talent_ratings ${sql({ person_id: personId, performance, potential, note, updated_by: MANAGER })}`;
+  }
+}
+
 const succession = [
   ["SA Manager, ANZ", "Daniel Okafor", "internal", "daniel-okafor", "one_year", "Knows the team, products and customers; trusted by AEs.", "No people management experience yet; currently being mentored."],
   ["SA Manager, ANZ", "Aiko Tanaka", "internal", "aiko-tanaka", "two_years", "Strongest technical leader; respected across APJ.", "Prefers the Principal track; would need to want it."],
@@ -226,7 +246,7 @@ async function main() {
   await sql.unsafe(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
 
   if (reset) {
-    await sql`truncate shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
@@ -239,6 +259,11 @@ async function main() {
       await renameEsatToPsd();
       await renameManager();
       await seedNextFocus();
+      const [{ ratings }] = await sql`select count(*)::int as ratings from talent_ratings`;
+      if (ratings === 0) {
+        await seedTalentRatings();
+        console.log("Added sample 9-box ratings.");
+      }
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
@@ -272,6 +297,7 @@ async function main() {
     await sql`insert into dev_plans ${sql({ person_id: personId, goal, target_level: target, next_step: next, due_on: day(due), status })}`;
   }
   await seedCareerGoals();
+  await seedTalentRatings();
   for (const [id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast] of deals) {
     await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: quarter, next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })}`;
   }

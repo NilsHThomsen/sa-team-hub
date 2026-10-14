@@ -608,6 +608,54 @@ export async function setRetentionRisk(
   return row;
 }
 
+// ---------- 9-box (2P matrix) ----------
+
+export const NINE_BOX_LEVELS = ["Low", "Medium", "High"] as const;
+
+/** Box names, indexed [potential - 1][performance - 1]. */
+export const NINE_BOX_NAMES = [
+  ["Talent risk", "Effective", "Trusted professional"],
+  ["Inconsistent player", "Core player", "High performer"],
+  ["Rough diamond", "Future star", "Star"],
+] as const;
+
+export interface TalentRating {
+  person_id: string;
+  person_name: string;
+  performance: 1 | 2 | 3;
+  potential: 1 | 2 | 3;
+  box: string;
+  note: string | null;
+  updated_at: string;
+}
+
+export async function listTalentRatings(actor: Actor): Promise<TalentRating[]> {
+  requireManager(actor, "The 9-box");
+  const rows = await db()<Omit<TalentRating, "box">[]>`
+    select t.person_id, p.name as person_name, t.performance, t.potential, t.note, to_char(t.updated_at, 'YYYY-MM-DD') as updated_at
+    from talent_ratings t join people p on p.id = t.person_id
+    order by t.potential desc, t.performance desc, p.name`;
+  return rows.map((r) => ({ ...r, box: NINE_BOX_NAMES[r.potential - 1][r.performance - 1] }));
+}
+
+export async function setTalentRating(
+  actor: Actor,
+  input: { personId: string; performance: 1 | 2 | 3; potential: 1 | 2 | 3; note?: string },
+): Promise<TalentRating> {
+  requireManager(actor, "The 9-box");
+  if (actor.kind !== "user") throw new AccessDenied("The 9-box needs a signed-in manager.");
+  const [person] = await db()<{ role: string }[]>`select role from people where id = ${input.personId}`;
+  if (person?.role !== "ic") throw new AccessDenied("Only team members (ICs) are placed on the 9-box.");
+  await db()`
+    insert into talent_ratings (person_id, performance, potential, note, updated_by, updated_at)
+    values (${input.personId}, ${input.performance}, ${input.potential}, ${input.note ?? null}, ${actor.personId}, now())
+    on conflict (person_id) do update
+      set performance = excluded.performance, potential = excluded.potential,
+          note = coalesce(${input.note ?? null}, talent_ratings.note), updated_by = excluded.updated_by, updated_at = now()`;
+  const [row] = (await listTalentRatings(actor)).filter((r) => r.person_id === input.personId);
+  return row;
+}
+
 export async function listSuccession(actor: Actor) {
   requireManager(actor, "Succession planning");
   return db()<{ id: number; role_name: string; candidate: string; kind: string; readiness: string; pros: string; cons: string }[]>`

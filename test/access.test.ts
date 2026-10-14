@@ -30,6 +30,8 @@ import {
   listPendingShoutoutsFor,
   listSentShoutouts,
   recordAcceptedShoutout,
+  listTalentRatings,
+  setTalentRating,
 } from "../agent/lib/data";
 import { wakeShoutoutWorkflow } from "../agent/lib/shoutouts";
 import { db } from "../agent/lib/db";
@@ -357,5 +359,24 @@ describe("shout-outs", () => {
   test("waking the workflow never throws, even with nothing listening", async () => {
     assert.equal(await wakeShoutoutWorkflow(null), false);
     assert.equal(await wakeShoutoutWorkflow("/.well-known/workflow/v1/webhook/nothing", "http://127.0.0.1:9"), false);
+  });
+});
+
+describe("9-box", () => {
+  test("is manager only, for reading and writing", async () => {
+    await assert.rejects(listTalentRatings(priya), AccessDenied);
+    await assert.rejects(listTalentRatings(app), AccessDenied);
+    await assert.rejects(setTalentRating(priya, { personId: "priya-nair", performance: 3, potential: 3 }), AccessDenied);
+  });
+
+  test("a manager sees named boxes and can move an SA, but not place a manager", async () => {
+    const ratings = await listTalentRatings(manager);
+    const priyaNow = ratings.find((r) => r.person_id === "priya-nair");
+    assert.equal(priyaNow?.box, "Star");
+    const moved = await setTalentRating(manager, { personId: "tom-becker", performance: 3, potential: 1 });
+    assert.equal(moved.box, "Trusted professional");
+    assert.ok(moved.note); // the earlier note is kept when none is given
+    await setTalentRating(manager, { personId: "tom-becker", performance: 2, potential: 1 });
+    await assert.rejects(setTalentRating(manager, { personId: "jordan-hayes", performance: 3, potential: 3 }), AccessDenied);
   });
 });
