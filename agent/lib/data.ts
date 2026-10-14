@@ -284,6 +284,32 @@ export async function setPrimaryModel(actor: Actor, model: string): Promise<Mode
   return getModelSetting(actor);
 }
 
+// ---------- Slack links ----------
+
+const SLACK_ID = /^[UW][A-Z0-9]{6,}$/;
+
+/** Who a Slack member is on the team, or null. Used by the Slack channel before any turn starts. */
+export async function findPersonBySlackId(slackUserId: string): Promise<Person | null> {
+  const [row] = await db()<Person[]>`
+    select id, name, title, level, role, segment, location, to_char(start_date, 'YYYY-MM-DD') as start_date
+    from people where slack_user_id = ${slackUserId}`;
+  return row ?? null;
+}
+
+export async function listSlackLinks(actor: Actor) {
+  requireManager(actor, "Slack links");
+  return db()<{ id: string; name: string; role: string; slack_user_id: string | null }[]>`
+    select id, name, role, slack_user_id from people order by role desc, name`;
+}
+
+/** Link (or with an empty id, unlink) a person's Slack account. Managers only. */
+export async function setSlackLink(actor: Actor, personId: string, slackUserId: string): Promise<void> {
+  requireManager(actor, "Slack links");
+  const id = slackUserId.trim().toUpperCase();
+  if (id && !SLACK_ID.test(id)) throw new Error("That doesn't look like a Slack member ID (it starts with U, like U0123ABCD).");
+  await db()`update people set slack_user_id = ${id || null} where id = ${personId}`;
+}
+
 // ---------- Deal coverage ----------
 
 export const PRESALES_STAGES = ["discovery", "solution_design", "technical_validation", "tech_win"] as const;

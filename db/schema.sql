@@ -20,6 +20,10 @@ create table if not exists people (
   manager_id    text references people(id)
 );
 
+-- Slack member id (e.g. U0123ABCD), set by a manager on the Settings page. The
+-- Slack channel only answers people listed here; anyone else is refused.
+alter table people add column if not exists slack_user_id text unique;
+
 -- Skills Matrix: product skills, certifications and enablement in one table so
 -- the gap analysis can reason across all three. Product skills use level 0-4
 -- (None, Elevator, Present, Demo, Prove);

@@ -20,11 +20,13 @@ import {
   setCareerGoal,
   getModelSetting,
   setPrimaryModel,
+  setSlackLink,
   setRetentionRisk,
   skillGaps,
 } from "../agent/lib/data";
 import { db } from "../agent/lib/db";
 import { DEFAULT_MODEL, primaryModel } from "../agent/lib/models";
+import { slackAuthFor } from "../agent/lib/slack-auth";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
 
 const manager: Actor = { kind: "user", personId: "jordan-hayes", name: "Jordan Hayes", role: "manager" };
@@ -219,5 +221,39 @@ describe("primary model setting", () => {
     assert.equal(await primaryModel(), "anthropic/claude-opus-5.5");
     await setPrimaryModel(manager, DEFAULT_MODEL);
     assert.equal(await primaryModel(), DEFAULT_MODEL);
+  });
+});
+
+describe("Slack access", () => {
+  after(async () => {
+    await db()`update people set slack_user_id = null where id in ('jordan-hayes', 'priya-nair')`;
+  });
+
+  test("only a manager can link Slack accounts, and only valid member ids", async () => {
+    await assert.rejects(setSlackLink(priya, "priya-nair", "U0PRIYA01"), AccessDenied);
+    await assert.rejects(setSlackLink(manager, "priya-nair", "not-an-id"), /Slack member ID/);
+    await setSlackLink(manager, "priya-nair", "u0priya01"); // stored upper-case
+    await setSlackLink(manager, "jordan-hayes", "U0JORDAN1");
+  });
+
+  test("unlinked Slack members get nothing", async () => {
+    assert.equal(await slackAuthFor("U0STRANGER", "D0123456"), null);
+    assert.equal(await slackAuthFor(undefined, "D0123456"), null);
+  });
+
+  test("a manager keeps manager access in a DM but not in a shared channel", async () => {
+    const dm = actorFromAuth(await slackAuthFor("U0JORDAN1", "D0123456"));
+    assert.equal(dm.kind === "user" && dm.role, "manager");
+    await listRetentionRisks(dm);
+
+    const shared = actorFromAuth(await slackAuthFor("U0JORDAN1", "C0123456"));
+    assert.equal(shared.kind === "user" && shared.role, "ic");
+    await assert.rejects(listRetentionRisks(shared), AccessDenied);
+    assert.ok((await listDevPlans(shared)).every((p) => p.person_id === "jordan-hayes"));
+  });
+
+  test("an SA in Slack has exactly their web-app access", async () => {
+    const sa = actorFromAuth(await slackAuthFor("U0PRIYA01", "D0999999"));
+    assert.deepEqual(sa, { kind: "user", personId: "priya-nair", name: "Priya Nair", role: "ic" });
   });
 });
