@@ -139,7 +139,6 @@ const devPlans = [
   ["hannah-kim", "Ramp to independent SA", "SA2", "Run a full POV with Priya as backup", 40, "on_track"],
   ["jack-wilson", "Lead the Telco vertical play", "PSA", "Draft the telco industry pitch and demo", 14, "on_track"],
   ["mei-chen", "Senior SA readiness", "SSA", "Complete Champion Building and write a PSD", 25, "on_track"],
-  // Listed before Daniel's main plan so the main plan stays his latest (the one the agent edits).
   ["daniel-okafor", "Complete management training", "MGR", "Presales Collective management training", 182, "on_track"],
   ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Nils's leave and run two team meetings", 60, "on_track"],
 ] as const;
@@ -360,50 +359,28 @@ async function seed() {
     }
   }
 
-  for (const p of people) {
-    await sql`insert into people ${sql({ id: p.id, name: p.name, title: p.title, level: p.level, role: p.role, segment: p.segment, location: p.location, start_date: p.start, manager_id: p.id === MANAGER ? null : MANAGER })}`;
-  }
+  // One insert per table (rather than per row), so a reset over a slow connection takes seconds.
+  console.log("Loading demo data…");
+  await sql`insert into people ${sql(people.map((p) => ({ id: p.id, name: p.name, title: p.title, level: p.level, role: p.role, segment: p.segment, location: p.location, start_date: p.start, manager_id: p.id === MANAGER ? null : MANAGER })))}`;
 
-  for (const [personId, ls] of Object.entries(levels)) {
-    for (const [i, level] of ls.entries()) {
-      await sql`insert into skills ${sql({ person_id: personId, category: "product", name: productSkills[i], level })}`;
-    }
-  }
-  for (const [personId, list] of Object.entries(certs)) {
-    for (const [name, status, done, due] of list) {
-      await sql`insert into skills ${sql({ person_id: personId, category: "certification", name, status, completed_on: done === null ? null : day(done), due_on: due === null ? null : day(due) })}`;
-    }
-  }
-  for (const [personId, list] of Object.entries(enablement)) {
-    for (const [i, status] of list.entries()) {
-      await sql`insert into skills ${sql({ person_id: personId, category: "enablement", name: enablementItems[i], status, completed_on: status === "complete" ? day(-30 - i * 20) : null })}`;
-    }
-  }
-  for (const n of skillNeeds) await sql`insert into skill_needs ${sql(n)}`;
+  await sql`insert into skills ${sql(Object.entries(levels).flatMap(([personId, ls]) => ls.map((level, i) => ({ person_id: personId, category: "product", name: productSkills[i], level }))))}`;
+  await sql`insert into skills ${sql(Object.entries(certs).flatMap(([personId, list]) => list.map(([name, status, done, due]) => ({ person_id: personId, category: "certification", name, status, completed_on: done === null ? null : day(done), due_on: due === null ? null : day(due) }))))}`;
+  await sql`insert into skills ${sql(Object.entries(enablement).flatMap(([personId, list]) => list.map((status, i) => ({ person_id: personId, category: "enablement", name: enablementItems[i], status, completed_on: status === "complete" ? day(-30 - i * 20) : null }))))}`;
+  await sql`insert into skill_needs ${sql(skillNeeds)}`;
 
-  for (const [personId, offset, category, title, impact] of achievements) {
-    await sql`insert into achievements ${sql({ person_id: personId, occurred_on: day(offset), category, title, impact, logged_by: personId })}`;
-  }
-  for (const [personId, goal, target, next, due, status] of devPlans) {
-    await sql`insert into dev_plans ${sql({ person_id: personId, goal, target_level: target, next_step: next, due_on: day(due), status })}`;
-  }
+  await sql`insert into achievements ${sql(achievements.map(([personId, offset, category, title, impact]) => ({ person_id: personId, occurred_on: day(offset), category, title, impact, logged_by: personId })))}`;
+  await sql`insert into dev_plans ${sql(devPlans.map(([personId, goal, target, next, due, status]) => ({ person_id: personId, goal, target_level: target, next_step: next, due_on: day(due), status })))}`;
+  // Daniel's training plan is older than his main plan, so the main plan stays the one the agent edits.
+  await sql`update dev_plans set updated_at = now() - interval '1 day' where goal = 'Complete management training'`;
   await seedCareerGoals();
   await seedTalentRatings();
-  for (const [id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast] of deals) {
-    await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: fiscalQuarter(new Date(), quarter), next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })}`;
-  }
+  await sql`insert into deals ${sql(deals.map(([id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast]) => ({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: fiscalQuarter(new Date(), quarter), next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })))}`;
   await seedDealScorecards();
-  for (const [personId, risk, reason, plan] of retention) {
-    await sql`insert into retention_risks ${sql({ person_id: personId, risk, reason, action_plan: plan, updated_by: MANAGER })}`;
-  }
-  for (const [roleName, candidate, kind, personId, readiness, pros, cons] of succession) {
-    await sql`insert into succession ${sql({ role_name: roleName, candidate, kind, person_id: personId, readiness, pros, cons })}`;
-  }
-  for (const [name, currentJob, focus, stage, contact, source, notes] of candidates) {
-    await sql`insert into candidates ${sql({ name, current_job: currentJob, focus, stage, last_contact: day(contact), source, notes })}`;
-  }
+  await sql`insert into retention_risks ${sql(retention.map(([personId, risk, reason, plan]) => ({ person_id: personId, risk, reason, action_plan: plan, updated_by: MANAGER })))}`;
+  await sql`insert into succession ${sql(succession.map(([roleName, candidate, kind, personId, readiness, pros, cons]) => ({ role_name: roleName, candidate, kind, person_id: personId, readiness, pros, cons })))}`;
+  await sql`insert into candidates ${sql(candidates.map(([name, currentJob, focus, stage, contact, source, notes]) => ({ name, current_job: currentJob, focus, stage, last_contact: day(contact), source, notes })))}`;
 
-  console.log(`Seeded ${people.length} people.`);
+  console.log(`Done: seeded ${people.length} people and their demo data.`);
 }
 
 main()
