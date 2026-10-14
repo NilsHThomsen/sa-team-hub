@@ -100,7 +100,7 @@ export default async function DealsPage({ searchParams }: { readonly searchParam
                 {LABEL[d.forecast]}
               </Td>
               <Td className="tabular-nums">{usd.format(d.acv_usd)}</Td>
-              <Td>{d.close_quarter}</Td>
+              <Td className="whitespace-nowrap">{d.close_quarter}</Td>
               <Td className="whitespace-nowrap">{d.ae}</Td>
               <Td className="whitespace-nowrap">{d.sa_name ?? "—"}</Td>
               <Td>

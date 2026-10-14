@@ -36,6 +36,7 @@ import {
   updateDealScorecard,
   topDeals,
   dealScore,
+  currentQuarter,
 } from "../agent/lib/data";
 import { wakeShoutoutWorkflow } from "../agent/lib/shoutouts";
 import { db } from "../agent/lib/db";
@@ -415,7 +416,7 @@ describe("promotion case decisions", () => {
 describe("deal scorecard", () => {
   test("top 5 this quarter, biggest first", async () => {
     const { deals } = await dealCoverage(manager);
-    const top = topDeals(deals, 5, "Q4");
+    const top = topDeals(deals);
     assert.equal(top.length, 5);
     assert.deepEqual(top.map((d) => d.id), ["D-1005", "D-1001", "D-1015", "D-1002", "D-1006"]);
     assert.equal(dealScore({ deliverables: ["presentation", "demo", "poc", "infosec_review"], presales_stage: "tech_win" }), 100);
@@ -429,5 +430,14 @@ describe("deal scorecard", () => {
     const undone = await updateDealScorecard(priya, { dealId: "D-1001", undo: ["infosec_review"] });
     assert.deepEqual(undone.deliverables, before?.deliverables);
     assert.equal(undone.sa_comment, before?.sa_comment); // no comment given, so it is kept
+  });
+});
+
+describe("fiscal quarters", () => {
+  test("follow Vercel's financial year, which ends in January", () => {
+    assert.equal(currentQuarter(new Date("2026-10-14")), "FY27 Q3");
+    assert.equal(currentQuarter(new Date("2026-11-01")), "FY27 Q4");
+    assert.equal(currentQuarter(new Date("2027-01-31")), "FY27 Q4");
+    assert.equal(currentQuarter(new Date("2027-02-01")), "FY28 Q1");
   });
 });

@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { AccessDenied, type Actor, isManager, requireManager } from "./actor";
+import { fiscalQuarter } from "./fiscal";
 import { type CareerGoal, isCareerGoal } from "./career-goals";
 import { DEFAULT_MODEL, isModelId, type ModelId } from "./models";
 import { skillLevelName } from "./skill-levels";
@@ -512,9 +513,9 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
   return { deals: visible, summary };
 }
 
-/** Calendar quarter deals close in, matching close_quarter ("Q4"). */
+/** The fiscal quarter deals close in this quarter, matching close_quarter ("FY27 Q3"). */
 export function currentQuarter(now = new Date()): string {
-  return `Q${Math.floor(now.getMonth() / 3) + 1}`;
+  return fiscalQuarter(now);
 }
 
 const STAGE_POINTS: Record<PresalesStage, number> = { discovery: 0, solution_design: 10, technical_validation: 25, tech_win: 40 };
