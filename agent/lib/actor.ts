@@ -40,7 +40,11 @@ export function actorFromAuth(auth: AuthLike | null | undefined): Actor {
     const role = auth.attributes.role;
     const name = auth.attributes.name;
     if ((role === "ic" || role === "manager") && typeof name === "string") {
-      return { kind: "user", personId: auth.principalId, name, role };
+      // In a shared Slack channel anyone can read the reply, so everyone (managers
+      // included) gets IC-level access there: their own records and team-visible
+      // data only. Manager-only data is available in the web app or a Slack DM.
+      const shared = auth.attributes.channel === "slack-shared";
+      return { kind: "user", personId: auth.principalId, name, role: shared ? "ic" : role };
     }
   }
 
