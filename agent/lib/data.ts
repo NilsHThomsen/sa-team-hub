@@ -545,13 +545,18 @@ export async function latestDigest(): Promise<{ week_of: string; body: string } 
   return rows[0] ?? null;
 }
 
-export async function saveDigest(actor: Actor, body: string): Promise<{ week_of: string }> {
+export async function saveDigest(actor: Actor, body: string): Promise<{ week_of: string; slack_ts: string | null }> {
   if (actor.kind === "user" && actor.role !== "manager") throw new AccessDenied("Only managers or the scheduler write digests.");
   // One digest per week (keyed on the Monday), so a re-run replaces rather than duplicates.
-  const [row] = await db()<{ week_of: string }[]>`
+  const [row] = await db()<{ week_of: string; slack_ts: string | null }[]>`
     insert into digests (week_of, body)
     values (date_trunc('week', current_date)::date, ${body})
     on conflict (week_of) do update set body = excluded.body, created_at = now()
-    returning to_char(week_of, 'YYYY-MM-DD') as week_of`;
+    returning to_char(week_of, 'YYYY-MM-DD') as week_of, slack_ts`;
   return row;
+}
+
+/** Remembers the Slack message a week's digest was posted as. */
+export async function setDigestSlackTs(weekOf: string, slackTs: string): Promise<void> {
+  await db()`update digests set slack_ts = ${slackTs} where week_of = ${weekOf}::date`;
 }

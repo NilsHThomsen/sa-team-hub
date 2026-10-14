@@ -14,7 +14,7 @@ Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation
 | Deal Coverage | Stage 2+ coverage, stale next steps, missing technical wins, overloaded SAs | `review_deal_coverage`, `update_deal_next_step` (SAs update their own deals, confirm before saving, logged in `deal_updates`) |
 | Talent (managers only) | Retention risk, promotion cases, succession, warm bench | `get_talent_overview`, `update_retention_risk` (asks to confirm), `draft_promotion_case` (workflow) |
 | Settings (managers only) | Choose the primary model from a short list of AI Gateway models. New chats, the digest and promotion cases pick it up; open chats keep theirs | Read once per session by a `defineDynamic` model in `agent/agent.ts` |
-| Slack | DM the bot or @mention it: "log a win…", "update Aurora…". Approvals become buttons. Only people linked on Settings get in; shared channels get SA-level access only | `agent/channels/slack.ts` (eve Slack channel via Vercel Connect), `slack-digest` schedule posts the digest to `SLACK_DIGEST_CHANNEL` |
+| Slack | DM the bot or @mention it: "log a win…", "update Aurora…". Approvals become buttons. Only people linked on Settings get in; shared channels get SA-level access only | `agent/channels/slack.ts` (eve Slack channel via Vercel Connect), `save_weekly_digest` also posts the digest to `SLACK_DIGEST_CHANNEL` (re-saving edits the same post) |
 | Weekly digest | Shown on the home page | `friday-digest` schedule, Fridays 06:00 UTC |
 
 ## Architecture

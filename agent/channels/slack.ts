@@ -1,5 +1,5 @@
-import { connectSlackCredentials } from "@vercel/connect/eve";
 import { type SlackInboundMessageContext, type SlackMessage, slackChannel } from "eve/channels/slack";
+import { slackCredentials } from "../lib/slack";
 import { slackAuthFor } from "../lib/slack-auth";
 
 const NOT_LINKED =
@@ -18,9 +18,8 @@ async function admit(ctx: SlackInboundMessageContext, message: SlackMessage) {
 }
 
 export default slackChannel({
-  // Vercel Connect holds the bot token and verifies requests; `eve add channel/slack`
-  // creates this connector and routes Slack events to /eve/v1/slack.
-  credentials: connectSlackCredentials("slack/sa-team-hub"),
+  // Vercel Connect holds the bot token and verifies requests (see lib/slack.ts).
+  credentials: slackCredentials,
   onAppMention: admit,
   onDirectMessage: admit,
   // Follow-ups in a thread the agent is already in, without another @mention.

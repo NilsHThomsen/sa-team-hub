@@ -131,6 +131,10 @@ create table if not exists deal_updates (
 alter table deal_updates add column if not exists presales_stage text;
 alter table deal_updates drop column if exists tech_win;
 
+-- Slack message for each week's digest, so a re-saved digest edits the same
+-- post instead of posting twice.
+alter table digests add column if not exists slack_ts text;
+
 -- App-wide settings a manager can change, such as the primary model.
 create table if not exists app_settings (
   key           text primary key,

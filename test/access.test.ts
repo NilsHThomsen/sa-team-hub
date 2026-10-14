@@ -26,6 +26,7 @@ import {
 } from "../agent/lib/data";
 import { db } from "../agent/lib/db";
 import { DEFAULT_MODEL, primaryModel } from "../agent/lib/models";
+import { postDigestToSlack } from "../agent/lib/slack";
 import { slackAuthFor } from "../agent/lib/slack-auth";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
 
@@ -255,5 +256,14 @@ describe("Slack access", () => {
   test("an SA in Slack has exactly their web-app access", async () => {
     const sa = actorFromAuth(await slackAuthFor("U0PRIYA01", "D0999999"));
     assert.deepEqual(sa, { kind: "user", personId: "priya-nair", name: "Priya Nair", role: "ic" });
+  });
+});
+
+describe("digest to Slack", () => {
+  test("saving works without Slack set up, and says so", async () => {
+    delete process.env.SLACK_DIGEST_CHANNEL;
+    const digest = await saveDigest(manager, "Wins this week: test digest body long enough to save.");
+    assert.equal(digest.slack_ts, null);
+    assert.equal(await postDigestToSlack(digest, "body"), "not configured");
   });
 });
