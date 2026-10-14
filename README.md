@@ -19,7 +19,7 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 
 ## Try it
 
-Sign in as **Nils Thomsen** (manager) or any SA, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Ask, as an SA, "What is Tom Becker's retention risk?" to see the agent refuse.
+Sign in as **Nils Thomsen** (manager) or any SA, such as **Priya Nair**, with the demo password (default `PasswordVercel`). Ask, as an SA, "What is Tom Becker's retention risk?" to see the agent refuse.
 
 ## Architecture
 

@@ -11,7 +11,7 @@ import { SESSION_COOKIE, signSession } from "@/agent/lib/session";
 export async function signIn(formData: FormData) {
   const personId = String(formData.get("personId") ?? "");
   const password = String(formData.get("password") ?? "");
-  const expected = process.env.DEMO_PASSWORD ?? "team-hub-demo";
+  const expected = process.env.DEMO_PASSWORD ?? "PasswordVercel";
 
   if (password !== expected) redirect("/login?error=password");
   const person = await findPerson(personId);
