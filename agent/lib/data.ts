@@ -64,7 +64,7 @@ export interface SkillRow {
   category: "product" | "certification" | "enablement";
   name: string;
   level: number | null;
-  status: "not_started" | "in_progress" | "complete" | null;
+  status: "not_started" | "next_focus" | "in_progress" | "complete" | null;
   completed_on: string | null;
   due_on: string | null;
 }

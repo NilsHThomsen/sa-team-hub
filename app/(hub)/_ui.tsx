@@ -66,6 +66,7 @@ const PILL: Record<string, string> = {
   complete: "bg-emerald-100 text-emerald-800",
   in_progress: "bg-amber-100 text-amber-800",
   not_started: "bg-slate-100 text-slate-600",
+  next_focus: "bg-white text-amber-700 ring-1 ring-amber-400",
   pending_approval: "bg-amber-100 text-amber-800",
   approved: "bg-emerald-100 text-emerald-800",
   rejected: "bg-slate-100 text-slate-600",

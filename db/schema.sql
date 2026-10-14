@@ -33,7 +33,7 @@ create table if not exists skills (
   category      text not null check (category in ('product', 'certification', 'enablement')),
   name          text not null,
   level         int check (level between 0 and 4),
-  status        text check (status in ('not_started', 'in_progress', 'complete')),
+  status        text check (status in ('not_started', 'next_focus', 'in_progress', 'complete')),
   completed_on  date,
   due_on        date,
   updated_at    timestamptz not null default now(),
@@ -131,10 +131,6 @@ create table if not exists deal_updates (
 alter table deal_updates add column if not exists presales_stage text;
 alter table deal_updates drop column if exists tech_win;
 
--- Slack message for each week's digest, so a re-saved digest edits the same
--- post instead of posting twice.
-alter table digests add column if not exists slack_ts text;
-
 -- App-wide settings a manager can change, such as the primary model.
 create table if not exists app_settings (
   key           text primary key,
@@ -201,6 +197,10 @@ create table if not exists digests (
   created_at    timestamptz not null default now()
 );
 
+-- Slack message for each week's digest, so a re-saved digest edits the same
+-- post instead of posting twice.
+alter table digests add column if not exists slack_ts text;
+
 -- Shout-outs: one teammate recognises another. A workflow (agent/tools/send_shoutout.ts)
 -- waits for the recipient to accept before the shout-out becomes an achievement.
 create table if not exists shoutouts (
@@ -217,3 +217,8 @@ create table if not exists shoutouts (
   created_at    timestamptz not null default now(),
   decided_at    timestamptz
 );
+
+-- "Next focus" (agreed as the next thing to work on, not started yet) was added
+-- after launch; replace the status check on databases created before it.
+alter table skills drop constraint if exists skills_status_check;
+alter table skills add constraint skills_status_check check (status in ('not_started', 'next_focus', 'in_progress', 'complete'));

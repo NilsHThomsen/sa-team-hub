@@ -55,7 +55,7 @@ const levels: Record<string, number[]> = {
   "daniel-okafor": [4, 3, 2, 3, 4, 3],
 };
 
-type Status = "not_started" | "in_progress" | "complete";
+type Status = "not_started" | "next_focus" | "in_progress" | "complete";
 // [name, status, completed offset (days) or null, due offset or null]
 const certs: Record<string, [string, Status, number | null, number | null][]> = {
   "priya-nair": [["AWS Solutions Architect Professional", "complete", -400, null], ["Azure Solutions Architect Expert", "in_progress", null, 45]],
@@ -64,7 +64,7 @@ const certs: Record<string, [string, Status, number | null, number | null][]> = 
   "liam-oconnor": [["AWS Solutions Architect Associate", "in_progress", null, -10]],
   "sofia-rossi": [["Azure Solutions Architect Expert", "complete", -150, null]],
   "ravi-menon": [["AWS Solutions Architect Professional", "complete", -500, null]],
-  "hannah-kim": [["AWS Solutions Architect Associate", "not_started", null, 90]],
+  "hannah-kim": [["AWS Solutions Architect Associate", "next_focus", null, 90]],
   "jack-wilson": [["Google Cloud Professional Architect", "in_progress", null, 30]],
   "mei-chen": [["Azure Solutions Architect Expert", "not_started", null, 60]],
   "daniel-okafor": [["AWS Solutions Architect Professional", "complete", -250, null], ["Azure Solutions Architect Expert", "complete", -90, null]],
@@ -77,12 +77,12 @@ const enablement: Record<string, Status[]> = {
   "priya-nair": ["complete", "complete", "complete", "in_progress"],
   "tom-becker": ["complete", "in_progress", "not_started", "not_started"],
   "aiko-tanaka": ["complete", "complete", "complete", "complete"],
-  "liam-oconnor": ["complete", "not_started", "not_started", "not_started"],
+  "liam-oconnor": ["complete", "not_started", "next_focus", "not_started"],
   "sofia-rossi": ["complete", "complete", "in_progress", "complete"],
   "ravi-menon": ["complete", "complete", "complete", "not_started"],
   "hannah-kim": ["in_progress", "not_started", "not_started", "not_started"],
   "jack-wilson": ["complete", "in_progress", "complete", "not_started"],
-  "mei-chen": ["complete", "not_started", "in_progress", "not_started"],
+  "mei-chen": ["complete", "not_started", "in_progress", "next_focus"],
   "daniel-okafor": ["complete", "complete", "complete", "complete"],
 };
 
@@ -205,6 +205,17 @@ async function renameManager() {
   await sql`update dev_plans set next_step = replace(next_step, 'Jordan''s leave', 'Nils''s leave') where next_step like '%Jordan''s leave%'`;
 }
 
+// Sample "Next focus" items for databases seeded before that status existed.
+// Only runs while nobody has one, and only flips items still at not started.
+async function seedNextFocus() {
+  const [{ count }] = await sql`select count(*)::int as count from skills where status = 'next_focus'`;
+  if (count > 0) return;
+  await sql`update skills set status = 'next_focus' where status = 'not_started' and (
+    (person_id = 'hannah-kim' and name = 'AWS Solutions Architect Associate') or
+    (person_id = 'liam-oconnor' and name = 'Champion Building') or
+    (person_id = 'mei-chen' and name = 'Value Engineering (PSD)'))`;
+}
+
 async function seedCareerGoals() {
   for (const [personId, goal, note] of careerGoals) {
     await sql`insert into career_goals ${sql({ person_id: personId, goal, note, updated_by: personId })}`;
@@ -227,6 +238,7 @@ async function main() {
       }
       await renameEsatToPsd();
       await renameManager();
+      await seedNextFocus();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
