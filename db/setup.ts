@@ -135,6 +135,8 @@ const devPlans = [
   ["hannah-kim", "Ramp to independent SA", "SA2", "Run a full POV with Priya as backup", 40, "on_track"],
   ["jack-wilson", "Lead the Telco vertical play", "PSA", "Draft the telco industry pitch and demo", 14, "on_track"],
   ["mei-chen", "Senior SA readiness", "SSA", "Complete Champion Building and write a PSD", 25, "on_track"],
+  // Listed before Daniel's main plan so the main plan stays his latest (the one the agent edits).
+  ["daniel-okafor", "Complete management training", "MGR", "Presales Collective management training", 182, "on_track"],
   ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Nils's leave and run two team meetings", 60, "on_track"],
 ] as const;
 
@@ -273,6 +275,14 @@ async function seedDealScorecards() {
   }
 }
 
+// Adds Daniel's management training plan to databases seeded before it existed.
+async function seedManagementTraining() {
+  const [personId, goal, target, next, due, status] = devPlans.find((p) => p[1] === "Complete management training")!;
+  await sql`insert into dev_plans (person_id, goal, target_level, next_step, due_on, status, updated_at)
+    select ${personId}, ${goal}, ${target}, ${next}, ${day(due)}, ${status}, now() - interval '1 day'
+    where not exists (select 1 from dev_plans where person_id = ${personId} and goal = ${goal})`;
+}
+
 async function seedCareerGoals() {
   for (const [personId, goal, note] of careerGoals) {
     await sql`insert into career_goals ${sql({ person_id: personId, goal, note, updated_by: personId })}`;
@@ -298,6 +308,7 @@ async function main() {
       await seedNextFocus();
       await moveDealsToFiscalQuarters();
       await seedDealScorecards();
+      await seedManagementTraining();
       const [{ ratings }] = await sql`select count(*)::int as ratings from talent_ratings`;
       if (ratings === 0) {
         await seedTalentRatings();
