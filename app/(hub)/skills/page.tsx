@@ -6,6 +6,7 @@ import { SKILL_LEVEL_MEANING, SKILL_LEVELS, skillLevelName } from "@/agent/lib/s
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { PageHeader, Pill, Section, Table, Td } from "../_ui";
+import { isDesign, SkillsMatrixDesign } from "./_matrix-designs";
 import { LEVEL_STYLE, SkillsByRow } from "./_skills-by-row";
 
 // Two layouts while we try the flipped one: people as columns (default) or the
@@ -43,7 +44,11 @@ export default async function SkillsPage({ searchParams }: { readonly searchPara
 
       {byPerson ? null : (
         <div className="mb-8">
-          <SkillsByRow people={ics} skills={skills} viewerId={viewer.personId} />
+          {isDesign(params.design) ? (
+            <SkillsMatrixDesign design={params.design} people={ics} skills={skills} viewerId={viewer.personId} />
+          ) : (
+            <SkillsByRow people={ics} skills={skills} viewerId={viewer.personId} />
+          )}
         </div>
       )}
       {byPerson ? (
