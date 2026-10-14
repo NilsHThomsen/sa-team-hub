@@ -30,7 +30,9 @@ Browser ──► Next.js 16 (App Router)
                                   ├─ channels/eve.ts   verifies the same cookie
                                   ├─ tools/*           everyday tools: action items, achievements, shout-outs, digest
                                   ├─ subagents/deals             coverage, scorecard, next steps, deal admin
+                                  │    └─ skills/technical-win-plan.md
                                   ├─ subagents/skills_and_plans  skills matrix, gaps, dev plans, career goals
+                                  │    └─ skills/dev-plan-coaching.md
                                   ├─ subagents/talent            managers only (defineDynamic: absent for SAs)
                                   │    ├─ draft_promotion_case   Workflow: gather → score → draft (AI SDK) → save → ask manager (or Talent / Home buttons) → decide
                                   │    └─ skills/promotion-cases.md
