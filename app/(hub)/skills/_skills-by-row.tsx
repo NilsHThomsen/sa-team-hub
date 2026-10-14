@@ -15,7 +15,7 @@ function Segments({ level }: { readonly level: number }) {
   return (
     <span className="inline-flex gap-0.5">
       {[1, 2, 3, 4].map((i) => (
-        <span className={cn("h-1.5 w-4 rounded-full", i <= level ? "bg-indigo-600" : "bg-slate-200")} key={i} />
+        <span className={cn("h-1.5 w-4 rounded-full", i <= level ? "bg-indigo-600 dark:bg-indigo-400" : "bg-slate-200 dark:bg-slate-700")} key={i} />
       ))}
     </span>
   );
@@ -38,7 +38,7 @@ function StatusIcon({ status }: { readonly status: Status }) {
     );
   // Next focus: the same ring as In progress, not yet filled.
   return (
-    <svg aria-label={STATUS_LABEL[status]} className={cn("inline size-4", status === "next_focus" ? "text-amber-500" : "text-slate-300")} viewBox="0 0 16 16">
+    <svg aria-label={STATUS_LABEL[status]} className={cn("inline size-4", status === "next_focus" ? "text-amber-500" : "text-slate-300 dark:text-slate-600")} viewBox="0 0 16 16">
       <circle cx="8" cy="8" fill="none" r="6.5" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
@@ -52,7 +52,7 @@ function StatusIcon({ status }: { readonly status: Status }) {
 export function SkillsByRow({ people, skills, viewerId }: { readonly people: readonly Person[]; readonly skills: readonly SkillRow[]; readonly viewerId: string | null }) {
   const names = (category: SkillRow["category"]) => [...new Set(skills.filter((s) => s.category === category).map((s) => s.name))];
   const find = (personId: string, category: string, name: string) => skills.find((s) => s.person_id === personId && s.category === category && s.name === name);
-  const mine = (personId: string) => personId === viewerId && "bg-amber-50/70";
+  const mine = (personId: string) => personId === viewerId && "bg-amber-50/70 dark:bg-amber-400/10";
   const sections: { title: string; category: SkillRow["category"] }[] = [
     { title: "Product skills", category: "product" },
     { title: "Certifications", category: "certification" },
@@ -62,7 +62,7 @@ export function SkillsByRow({ people, skills, viewerId }: { readonly people: rea
     <tr>
       <th className="sticky left-0 min-w-52 bg-card px-4 py-3 text-left font-medium text-muted-foreground text-xs">Skill</th>
       {people.map((p) => (
-        <th className={cn("px-2 py-3 text-center font-medium text-slate-700 text-xs", mine(p.id))} key={p.id}>
+        <th className={cn("px-2 py-3 text-center font-medium text-foreground text-xs", mine(p.id))} key={p.id}>
           {p.name}
         </th>
       ))}
@@ -97,14 +97,14 @@ export function SkillsByRow({ people, skills, viewerId }: { readonly people: rea
               </tr>
               {names(section.category).map((name) => (
                 <tr className="group" key={name}>
-                  <td className="sticky left-0 bg-card px-4 py-2 text-slate-700 group-hover:bg-slate-50">{name}</td>
+                  <td className="sticky left-0 bg-card px-4 py-2 text-foreground group-hover:bg-muted">{name}</td>
                   {people.map((p) => {
                     const skill = find(p.id, section.category, name);
                     const level = skill?.level ?? 0;
                     const status = skill ? (skill.status ?? "not_started") : null;
                     return (
                       <td
-                        className={cn("px-2 py-2 text-center group-hover:bg-slate-50", mine(p.id))}
+                        className={cn("px-2 py-2 text-center group-hover:bg-muted", mine(p.id))}
                         key={p.id}
                         title={
                           section.category === "product"

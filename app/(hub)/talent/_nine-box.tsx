@@ -52,14 +52,14 @@ export function NineBox({ ratings, unrated }: { readonly ratings: readonly Talen
         {/* Column headings */}
         <div />
         {PERFORMANCE.map((label) => (
-          <div className="text-center font-medium text-slate-600 text-xs" key={label}>
+          <div className="text-center font-medium text-muted-foreground text-xs" key={label}>
             {label}
           </div>
         ))}
         <div />
 
         {/* Potential axis, drawn down the left beside the three rows */}
-        <div className="flex flex-col items-center justify-between py-1 text-slate-500" style={{ gridColumn: 1, gridRow: "2 / span 3" }}>
+        <div className="flex flex-col items-center justify-between py-1 text-muted-foreground" style={{ gridColumn: 1, gridRow: "2 / span 3" }}>
           <span className="text-[10px]">▲</span>
           <span className="-rotate-180 font-medium text-[11px] uppercase tracking-[0.3em] [writing-mode:vertical-rl]">Potential</span>
           <span className="text-[10px]">▼</span>
@@ -86,23 +86,23 @@ export function NineBox({ ratings, unrated }: { readonly ratings: readonly Talen
 
         {/* Row labels on the right */}
         {[...POTENTIAL].reverse().map((label, i) => (
-          <div className="flex items-center font-medium text-slate-600 text-xs" key={label} style={{ gridColumn: 5, gridRow: i + 2 }}>
+          <div className="flex items-center font-medium text-muted-foreground text-xs" key={label} style={{ gridColumn: 5, gridRow: i + 2 }}>
             {label}
           </div>
         ))}
 
         {/* Performance axis */}
-        <div style={{ gridColumn: 1, gridRow: 5 }} className="text-slate-500 text-xs">
+        <div style={{ gridColumn: 1, gridRow: 5 }} className="text-muted-foreground text-xs">
           low
         </div>
-        <div className="flex items-center gap-2 text-slate-500" style={{ gridColumn: "2 / span 3", gridRow: 5 }}>
+        <div className="flex items-center gap-2 text-muted-foreground" style={{ gridColumn: "2 / span 3", gridRow: 5 }}>
           <span className="text-[10px]">◀</span>
-          <span className="h-px flex-1 bg-slate-300" />
+          <span className="h-px flex-1 bg-border" />
           <span className="font-medium text-[11px] uppercase tracking-[0.3em]">Performance</span>
-          <span className="h-px flex-1 bg-slate-300" />
+          <span className="h-px flex-1 bg-border" />
           <span className="text-[10px]">▶</span>
         </div>
-        <div className="text-slate-500 text-xs" style={{ gridColumn: 5, gridRow: 5 }}>
+        <div className="text-muted-foreground text-xs" style={{ gridColumn: 5, gridRow: 5 }}>
           high
         </div>
       </div>
