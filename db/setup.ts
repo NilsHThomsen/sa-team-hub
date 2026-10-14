@@ -23,7 +23,10 @@ if (process.argv.includes("--if-configured") && !url?.startsWith("postgres")) {
 }
 if (!url) throw new Error("Set DATABASE_URL (or POSTGRES_URL) first.");
 
-const sql = postgres(url, { ssl: url.includes("localhost") ? false : "require", max: 1, onnotice: () => {} });
+const root = postgres(url, { ssl: url.includes("localhost") ? false : "require", max: 1, onnotice: () => {} });
+// Everything below runs inside one transaction (see main), so a failed seed or migration
+// leaves the database exactly as it was instead of half-wiped.
+let sql = root;
 const reset = process.argv.includes("--reset");
 
 const day = (offset: number) => {
@@ -314,9 +317,22 @@ async function seedCareerGoals() {
 }
 
 async function main() {
+  await root.begin(async (tx) => {
+    sql = tx as unknown as typeof root;
+    await seed();
+  });
+}
+
+async function seed() {
   await sql.unsafe(readFileSync(new URL("./schema.sql", import.meta.url), "utf8"));
 
-  if (reset) {
+  // People with no skills and no deals means an earlier seed stopped part-way: start again.
+  const [{ people: peopleCount, skills: skillCount, deals: dealCount }] = await sql`
+    select (select count(*)::int from people) as people, (select count(*)::int from skills) as skills, (select count(*)::int from deals) as deals`;
+  const incomplete = peopleCount > 0 && skillCount === 0 && dealCount === 0;
+  if (incomplete) console.log("Found people but no other data; reseeding the demo data.");
+
+  if (reset || incomplete) {
     await sql`truncate talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
@@ -395,4 +411,4 @@ main()
     console.error(error);
     process.exitCode = 1;
   })
-  .finally(() => sql.end());
+  .finally(() => root.end());
