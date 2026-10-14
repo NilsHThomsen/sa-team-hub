@@ -4,7 +4,7 @@ import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
 import { ManagerOnly, PageHeader, Pill, Section, Table, Td } from "../_ui";
-import { NineBox } from "./_nine-box";
+import { isBoxStyle, NineBox } from "./_nine-box";
 
 export default async function TalentPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { actor } = await requireActor();
@@ -12,6 +12,7 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
   // The data functions would also throw AccessDenied: three layers, same rule.
   if (!isManager(actor)) return <ManagerOnly />;
 
+  const boxStyle = (await searchParams).box;
   const [allRatings, allRisks, allSuccession, allCandidates, allCases, people, selected] = await Promise.all([
     listTalentRatings(actor),
     listRetentionRisks(actor),
@@ -42,7 +43,7 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
       />
 
       <Section note="Move someone by asking the agent; it asks you to confirm" title="9-box (2P matrix)">
-        <NineBox ratings={ratings} unrated={unrated} />
+        <NineBox ratings={ratings} style={isBoxStyle(boxStyle) ? boxStyle : undefined} unrated={unrated} />
       </Section>
 
       <Section note="Changes through the agent require your approval" title="Retention risk">
