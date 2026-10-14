@@ -455,6 +455,10 @@ export function alignmentFlag(presales: PresalesStage, forecast: Forecast): stri
   return null;
 }
 
+export const DEAL_DELIVERABLES = ["presentation", "demo", "poc", "infosec_review"] as const;
+export type DealDeliverable = (typeof DEAL_DELIVERABLES)[number];
+export const DELIVERABLE_LABEL: Record<DealDeliverable, string> = { presentation: "Presentation", demo: "Demo", poc: "POC", infosec_review: "InfoSec review" };
+
 export interface DealRow {
   id: string;
   account: string;
@@ -469,6 +473,8 @@ export interface DealRow {
   days_since_update: number;
   presales_stage: PresalesStage;
   forecast: Forecast;
+  deliverables: DealDeliverable[];
+  sa_comment: string | null;
   flags: string[];
 }
 
@@ -480,7 +486,8 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
   const rows = await db()<Omit<DealRow, "flags">[]>`
     select d.id, d.account, d.ae, d.sa_id, p.name as sa_name, d.stage, d.acv_usd, d.close_quarter,
            d.next_step, to_char(d.next_step_on, 'YYYY-MM-DD') as next_step_on,
-           (current_date - d.next_step_on)::int as days_since_update, d.presales_stage, d.forecast
+           (current_date - d.next_step_on)::int as days_since_update, d.presales_stage, d.forecast,
+           d.deliverables, d.sa_comment
     from deals d left join people p on p.id = d.sa_id
     where d.stage < 5
     order by d.stage desc, d.acv_usd desc`;
@@ -503,6 +510,26 @@ export async function dealCoverage(actor: Actor): Promise<{ deals: DealRow[]; su
   const visible = actor.kind === "user" && actor.role === "ic" ? deals.filter((d) => d.sa_id === actor.personId) : deals;
   const summary = summarizeDeals(deals);
   return { deals: visible, summary };
+}
+
+/** Calendar quarter deals close in, matching close_quarter ("Q4"). */
+export function currentQuarter(now = new Date()): string {
+  return `Q${Math.floor(now.getMonth() / 3) + 1}`;
+}
+
+const STAGE_POINTS: Record<PresalesStage, number> = { discovery: 0, solution_design: 10, technical_validation: 25, tech_win: 40 };
+
+/** Deal score out of 100: 15 for each deliverable done, plus up to 40 for how far the SA stage has got. */
+export function dealScore(deal: Pick<DealRow, "deliverables" | "presales_stage">): number {
+  return deal.deliverables.length * 15 + STAGE_POINTS[deal.presales_stage];
+}
+
+/** The biggest open deals closing this quarter, by ACV. */
+export function topDeals(deals: readonly DealRow[], count = 5, quarter = currentQuarter()): DealRow[] {
+  return deals
+    .filter((d) => d.close_quarter === quarter && d.stage < 5)
+    .sort((a, b) => b.acv_usd - a.acv_usd)
+    .slice(0, count);
 }
 
 /** Coverage numbers for a set of deals: the whole team, or one or more people's deals on a filtered page. */
@@ -568,6 +595,36 @@ export async function updateDealNextStep(
     // Tell the caller straight away if their update leaves presales and sales out of line.
     const misaligned = alignmentFlag(row.presales_stage, row.forecast);
     return { deal_id: deal.id, account: deal.account, ...row, misaligned, duplicate: logged.length === 0 };
+  });
+}
+
+/**
+ * Updates a deal's scorecard: deliverables to mark done or undo, and the SA's
+ * comment. SAs update the deals they cover; managers any deal.
+ */
+export async function updateDealScorecard(
+  actor: Actor,
+  input: { dealId: string; done?: readonly DealDeliverable[]; undo?: readonly DealDeliverable[]; comment?: string },
+): Promise<{ deal_id: string; account: string; deliverables: DealDeliverable[]; sa_comment: string | null; score: number }> {
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can update the CRM.");
+  const sql = db();
+  return sql.begin(async (tx) => {
+    const [deal] = await tx<{ id: string; account: string; sa_id: string | null; deliverables: DealDeliverable[] }[]>`
+      select id, account, sa_id, deliverables from deals where id = ${input.dealId} for update`;
+    if (!deal) throw new Error(`No deal with id "${input.dealId}".`);
+    if (actor.role === "ic" && deal.sa_id !== actor.personId) {
+      throw new AccessDenied(`You can only update deals you cover. Ask the SA on ${deal.account} or your manager.`);
+    }
+    // Keep the canonical order so the scorecard always reads Presentation, Demo, POC, InfoSec review.
+    const next = new Set<DealDeliverable>(deal.deliverables);
+    for (const d of input.done ?? []) next.add(d);
+    for (const d of input.undo ?? []) next.delete(d);
+    const deliverables = DEAL_DELIVERABLES.filter((d) => next.has(d));
+    const [row] = await tx<{ sa_comment: string | null; presales_stage: PresalesStage }[]>`
+      update deals set deliverables = ${deliverables}, sa_comment = coalesce(${input.comment ?? null}::text, sa_comment)
+      where id = ${deal.id}
+      returning sa_comment, presales_stage`;
+    return { deal_id: deal.id, account: deal.account, deliverables, sa_comment: row.sa_comment, score: dealScore({ deliverables, presales_stage: row.presales_stage }) };
   });
 }
 

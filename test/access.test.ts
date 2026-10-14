@@ -33,6 +33,9 @@ import {
   listTalentRatings,
   setTalentRating,
   decidePromotionCase,
+  updateDealScorecard,
+  topDeals,
+  dealScore,
 } from "../agent/lib/data";
 import { wakeShoutoutWorkflow } from "../agent/lib/shoutouts";
 import { db } from "../agent/lib/db";
@@ -406,5 +409,25 @@ describe("promotion case decisions", () => {
     assert.equal(await decidePromotionCase(manager, id, false), "rejected");
     assert.equal(await decidePromotionCase(manager, id, true), "rejected");
     assert.ok(!(await actionItems(manager)).some((a) => a.promotionCaseId === id));
+  });
+});
+
+describe("deal scorecard", () => {
+  test("top 5 this quarter, biggest first", async () => {
+    const { deals } = await dealCoverage(manager);
+    const top = topDeals(deals, 5, "Q4");
+    assert.equal(top.length, 5);
+    assert.deepEqual(top.map((d) => d.id), ["D-1005", "D-1001", "D-1015", "D-1002", "D-1006"]);
+    assert.equal(dealScore({ deliverables: ["presentation", "demo", "poc", "infosec_review"], presales_stage: "tech_win" }), 100);
+  });
+
+  test("SAs update only their own deals; deliverables keep their order and can be undone", async () => {
+    await assert.rejects(updateDealScorecard(priya, { dealId: "D-1005", done: ["demo"] }), AccessDenied);
+    const before = (await dealCoverage(manager)).deals.find((d) => d.id === "D-1001");
+    const r = await updateDealScorecard(priya, { dealId: "D-1001", done: ["infosec_review", "presentation"] });
+    assert.deepEqual(r.deliverables, ["presentation", "demo", "poc", "infosec_review"]);
+    const undone = await updateDealScorecard(priya, { dealId: "D-1001", undo: ["infosec_review"] });
+    assert.deepEqual(undone.deliverables, before?.deliverables);
+    assert.equal(undone.sa_comment, before?.sa_comment); // no comment given, so it is kept
   });
 });

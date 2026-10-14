@@ -161,6 +161,16 @@ const deals = [
   ["D-1012", "Harbour Bank (Wealth)", "Grace Liu", "priya-nair", 2, 200000, "Q2", "Intro to wealth platform team", -26, "discovery", "pipeline"],
   ["D-1013", "Outback Outdoors", "Liam Ford", "liam-oconnor", 1, 60000, "Q2", "Qualify budget", -40, "discovery", "pipeline"],
   ["D-1014", "Aurora Logistics", "Tama Ngata", "priya-nair", 3, 330000, "Q1", "Agent POC success criteria", -5, "technical_validation", "strong_upside"],
+  ["D-1015", "Lakeside University", "Ben Harris", "aiko-tanaka", 3, 290000, "Q4", "Run the agent POC with the research IT team", -4, "technical_validation", "strong_upside"],
+] as const;
+
+// Deal scorecards for this quarter's biggest deals: [deal, deliverables done, SA comment].
+const dealScorecards = [
+  ["D-1005", ["presentation", "demo", "poc", "infosec_review"], "Architecture and security signed off; waiting on procurement paperwork."],
+  ["D-1001", ["presentation", "demo", "poc"], "POV hit every success criterion; InfoSec review booked for next week."],
+  ["D-1015", ["presentation", "demo"], "POC environment ready and success criteria agreed with research IT."],
+  ["D-1002", ["presentation", "demo", "poc"], "Phase 1 migration live; InfoSec review needed before phase 2."],
+  ["D-1006", ["presentation", "demo", "poc", "infosec_review"], "Pilot cut model spend 28%; ready for the AE to move the forecast to Commit."],
 ] as const;
 
 const retention = [
@@ -236,6 +246,17 @@ async function seedNextFocus() {
     (person_id = 'mei-chen' and name = 'Value Engineering (PSD)'))`;
 }
 
+// Adds the scorecard sample (and the deal it needs) to databases seeded before
+// it existed. Only fills scorecards nobody has written yet.
+async function seedDealScorecards() {
+  const [id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast] = deals[deals.length - 1];
+  await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: quarter, next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })}
+    on conflict (id) do nothing`;
+  for (const [dealId, deliverables, comment] of dealScorecards) {
+    await sql`update deals set deliverables = ${[...deliverables]}, sa_comment = ${comment} where id = ${dealId} and sa_comment is null and deliverables = '{}'`;
+  }
+}
+
 async function seedCareerGoals() {
   for (const [personId, goal, note] of careerGoals) {
     await sql`insert into career_goals ${sql({ person_id: personId, goal, note, updated_by: personId })}`;
@@ -259,6 +280,7 @@ async function main() {
       await renameEsatToPsd();
       await renameManager();
       await seedNextFocus();
+      await seedDealScorecards();
       const [{ ratings }] = await sql`select count(*)::int as ratings from talent_ratings`;
       if (ratings === 0) {
         await seedTalentRatings();
@@ -301,6 +323,7 @@ async function main() {
   for (const [id, account, ae, saId, stage, acv, quarter, next, nextOn, presalesStage, forecast] of deals) {
     await sql`insert into deals ${sql({ id, account, ae, sa_id: saId, stage, acv_usd: acv, close_quarter: quarter, next_step: next, next_step_on: day(nextOn), presales_stage: presalesStage, forecast })}`;
   }
+  await seedDealScorecards();
   for (const [personId, risk, reason, plan] of retention) {
     await sql`insert into retention_risks ${sql({ person_id: personId, risk, reason, action_plan: plan, updated_by: MANAGER })}`;
   }

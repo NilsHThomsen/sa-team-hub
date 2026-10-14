@@ -117,6 +117,12 @@ do $$ begin
   end if;
 end $$;
 
+-- Deal scorecard: the presales deliverables done so far and the SA's comment.
+alter table deals add column if not exists deliverables text[] not null default '{}';
+alter table deals add column if not exists sa_comment text;
+alter table deals drop constraint if exists deals_deliverables_check;
+alter table deals add constraint deals_deliverables_check check (deliverables <@ array['presentation', 'demo', 'poc', 'infosec_review']::text[]);
+
 -- CRM change log: every next-step update made through the agent, with who made it.
 -- idempotency_key is the tool call id, so a replayed step logs (and updates) once.
 create table if not exists deal_updates (
