@@ -61,7 +61,7 @@ export function SkillsByRow({ people, skills, viewerId }: { readonly people: rea
   const mine = (personId: string) => personId === viewerId && "bg-amber-50/70 dark:bg-amber-400/10";
   const sections: { title: string; category: SkillRow["category"] }[] = [
     { title: "Product skills", category: "product" },
-    { title: "Certifications", category: "certification" },
+    { title: "Hyperscaler Certifications", category: "certification" },
     { title: "Soft skills", category: "enablement" },
   ];
   const namesRow = (

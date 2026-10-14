@@ -72,7 +72,7 @@ export default async function SkillsPage({ searchParams }: { readonly searchPara
           </Section>
 
           <div className="grid gap-8 lg:grid-cols-2">
-            <Section title="Certifications">
+            <Section title="Hyperscaler Certifications">
               <Table head={["Person", "Certification", "Status", "Date"]}>
                 {skills
                   .filter((s) => s.category === "certification")
