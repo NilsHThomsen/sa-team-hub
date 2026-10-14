@@ -49,7 +49,7 @@ export const FRAMEWORK: Record<Level, Criterion[]> = {
     { id: "multiplier", label: "Multiplies the team: enablement or mentoring (2+ achievements)", check: (e) => ({ met: count(e, "enablement") + count(e, "leadership") >= 2, detail: `${count(e, "enablement") + count(e, "leadership")} enablement or leadership achievements` }) },
     { id: "enablement", label: "Completed Champion Building and Value Engineering", check: (e) => {
       const d = done(e, "enablement");
-      const need = ["Champion Building", "Value Engineering (ESAT)"];
+      const need = ["Champion Building", "Value Engineering (PSD)"];
       const missing = need.filter((n) => !d.includes(n));
       return { met: missing.length === 0, detail: missing.length === 0 ? "both complete" : `missing ${missing.join(", ")}` };
     } },

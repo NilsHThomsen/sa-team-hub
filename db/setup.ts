@@ -70,7 +70,8 @@ const certs: Record<string, [string, Status, number | null, number | null][]> = 
   "daniel-okafor": [["AWS Solutions Architect Professional", "complete", -250, null], ["Azure Solutions Architect Expert", "complete", -90, null]],
 };
 
-const enablementItems = ["Demo2Win", "Storytelling for Technical Sellers", "Champion Building", "Value Engineering (ESAT)"];
+const PSD_REASON = "A PSD (Presales Strategy Document) is required on deals over US$200k.";
+const enablementItems = ["Demo2Win", "Storytelling for Technical Sellers", "Champion Building", "Value Engineering (PSD)"];
 // Status per person in enablementItems order.
 const enablement: Record<string, Status[]> = {
   "priya-nair": ["complete", "complete", "complete", "in_progress"],
@@ -93,7 +94,7 @@ const skillNeeds = [
   { category: "certification", name: "Azure Solutions Architect Expert", min_level: null, min_people: 2, reason: "Business plan target: at least 2 people certified per hyperscaler." },
   { category: "certification", name: "Google Cloud Professional Architect", min_level: null, min_people: 2, reason: "Business plan target: at least 2 people certified per hyperscaler." },
   { category: "enablement", name: "Champion Building", min_level: null, min_people: 7, reason: "Not enough true champions in late-stage deals (business plan weakness)." },
-  { category: "enablement", name: "Value Engineering (ESAT)", min_level: null, min_people: 6, reason: "ESATs are required on deals over US$200k." },
+  { category: "enablement", name: "Value Engineering (PSD)", min_level: null, min_people: 6, reason: PSD_REASON },
 ];
 
 const achievements = [
@@ -125,7 +126,7 @@ const devPlans = [
   ["ravi-menon", "Expand AE coverage in Public Sector", "PSA", "Joint account plan with a second Federal AE", -20, "at_risk"],
   ["hannah-kim", "Ramp to independent SA", "SA2", "Run a full POV with Priya as backup", 40, "on_track"],
   ["jack-wilson", "Lead the Telco vertical play", "PSA", "Draft the telco industry pitch and demo", 14, "on_track"],
-  ["mei-chen", "Senior SA readiness", "SSA", "Complete Champion Building and run an ESAT", 25, "on_track"],
+  ["mei-chen", "Senior SA readiness", "SSA", "Complete Champion Building and write a PSD", 25, "on_track"],
   ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Jordan's leave and run two team meetings", 60, "on_track"],
 ] as const;
 
@@ -189,6 +190,14 @@ const candidates = [
   ["Leila Haddad", "Platform architect at a bank", "Security & compliance, FSI", "engaged", -14, "Referral (Priya)", "Would strengthen the FSI bench."],
 ] as const;
 
+// ESAT was renamed to PSD (Presales Strategy Document). Already-seeded databases
+// get the same rename here, so `db:setup` updates them without a reset.
+async function renameEsatToPsd() {
+  await sql`update skills set name = 'Value Engineering (PSD)' where name = 'Value Engineering (ESAT)'`;
+  await sql`update skill_needs set name = 'Value Engineering (PSD)', reason = ${PSD_REASON} where name = 'Value Engineering (ESAT)'`;
+  await sql`update dev_plans set next_step = replace(next_step, 'run an ESAT', 'write a PSD') where next_step like '%ESAT%'`;
+}
+
 async function seedCareerGoals() {
   for (const [personId, goal, note] of careerGoals) {
     await sql`insert into career_goals ${sql({ person_id: personId, goal, note, updated_by: personId })}`;
@@ -209,6 +218,7 @@ async function main() {
         await seedCareerGoals();
         console.log("Added sample career goals.");
       }
+      await renameEsatToPsd();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
