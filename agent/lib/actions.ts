@@ -15,6 +15,8 @@ export interface ActionItem {
   personId: string | null;
   /** Set on shout-out items, which the home page answers in place. */
   shoutoutId?: number;
+  /** Set on promotion-case approvals, which the home page answers in place. */
+  promotionCaseId?: number;
 }
 
 const KIND_ORDER: ActionItem["kind"][] = ["shoutout", "approval", "deal", "dev_plan", "retention", "career_goal", "enablement"];
@@ -42,15 +44,16 @@ export async function actionItems(actor: Actor): Promise<ActionItem[]> {
     items.push({ kind: "shoutout", title: `${s.from_name} sent you a shout-out: ${s.title}`, detail: s.message, href: "/achievements", urgent: false, personId: null, shoutoutId: s.id });
   }
 
-  // Approvals: promotion cases drafted and waiting for the manager's decision in chat.
+  // Approvals: promotion cases drafted and waiting for the manager's decision.
   for (const c of cases.filter((c) => c.status === "pending_approval")) {
     items.push({
       kind: "approval",
       title: `Decide on ${c.person_name}'s promotion case to ${c.target_level}`,
-      detail: "Waiting for your approval in the chat where it was drafted.",
+      detail: c.summary,
       href: "/talent",
       urgent: true,
       personId: c.person_id,
+      promotionCaseId: c.id,
     });
   }
 

@@ -3,6 +3,7 @@ import { listCandidates, listPeople, listPromotionCases, listRetentionRisks, lis
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
+import { PromotionButtons } from "../_promotion-buttons";
 import { ManagerOnly, PageHeader, Pill, Section, Table, Td } from "../_ui";
 import { NineBox } from "./_nine-box";
 
@@ -71,9 +72,12 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
                 <Td className="whitespace-nowrap font-medium">{c.person_name}</Td>
                 <Td>{c.target_level}</Td>
                 <Td>
-                  <Pill value={c.status} />
+                  <Pill value={c.status === "rejected" ? "declined" : c.status} />
                 </Td>
-                <Td>{c.summary}</Td>
+                <Td>
+                  {c.summary}
+                  {c.status === "pending_approval" ? <PromotionButtons id={c.id} /> : null}
+                </Td>
                 <Td className="whitespace-nowrap text-muted-foreground text-xs">{c.model_used}</Td>
                 <Td className="whitespace-nowrap text-muted-foreground">{c.created_at}</Td>
               </tr>

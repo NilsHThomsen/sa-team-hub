@@ -11,6 +11,10 @@ import { managerOnly } from "../lib/policies";
 // to approve. That wait can be minutes or days. With the Workflow SDK each
 // "use step" result is checkpointed, so a crash, timeout or redeploy resumes
 // after the last finished step, and the approval wait holds no compute.
+//
+// The manager can also decide on the Talent page, in Action items on Home, or
+// later in chat (decide_promotion_case). The first decision wins: the save
+// below only touches a case that is still waiting.
 
 const caseSchema = z.object({
   headline: z.string().describe("One sentence: who, target level, and the core reason"),
@@ -23,7 +27,8 @@ const caseSchema = z.object({
 export default defineWorkflowTool({
   description:
     "Draft a promotion case for one person to their next level. Gathers their achievements, skills and development plan, " +
-    "scores them against the SA career framework, drafts the case with a model, then asks the manager to approve it before saving. " +
+    "scores them against the SA career framework, drafts the case with a model, then asks the manager to approve it. " +
+    "The manager can also approve or decline it on the Talent page or in Action items on Home. " +
     "Managers only. If the target level is omitted, the next level up is used.",
   inputSchema: z.object({
     personId: z.string().min(1).describe("Person id, e.g. 'priya-nair'. Resolve names with get_team_directory first."),
@@ -62,18 +67,21 @@ export default defineWorkflowTool({
         `(${score.met}/${score.total} criteria met).\n\n${draft.case.headline}\n\nApprove and save it to the Talent page?`,
       options: [
         { id: "approve", label: "Approve case", style: "primary" },
-        { id: "reject", label: "Send back" },
+        { id: "reject", label: "Decline" },
       ],
     });
 
-    const approved = answer.status === "answered" && answer.optionId === "approve";
-    const decidedBy = answer.status === "answered" ? (answer.responder?.principalId ?? null) : null;
-    await decideCase(caseId, approved ? "approved" : "rejected", decidedBy);
+    // If the conversation moved on, the question lapses and the case stays
+    // waiting on the dashboard rather than counting as sent back.
+    const status =
+      answer.status === "answered"
+        ? await decideCase(caseId, answer.optionId === "approve" ? "approved" : "rejected", answer.responder?.principalId ?? null)
+        : "pending_approval";
 
     return {
       saved: true,
       caseId,
-      status: approved ? "approved" : "rejected",
+      status: status === "rejected" ? "declined" : status === "pending_approval" ? "waiting for approval on the dashboard" : status,
       person: evidence.person.name,
       targetLevel: level,
       criteriaMet: `${score.met}/${score.total}`,
@@ -141,5 +149,10 @@ async function saveCase(input: { personId: string; level: Level; draft: Awaited<
 
 async function decideCase(caseId: number, status: "approved" | "rejected", decidedBy: string | null) {
   "use step";
-  await db()`update promotion_cases set status = ${status}, decided_by = ${decidedBy}, decided_at = now() where id = ${caseId}`;
+  // Only a case still waiting; if it was already decided on the dashboard, that decision stands.
+  await db()`
+    update promotion_cases set status = ${status}, decided_by = ${decidedBy}, decided_at = now()
+    where id = ${caseId} and status = 'pending_approval'`;
+  const [row] = await db()<{ status: string }[]>`select status from promotion_cases where id = ${caseId}`;
+  return row.status;
 }

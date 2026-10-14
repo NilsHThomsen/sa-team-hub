@@ -697,6 +697,22 @@ export async function listPromotionCases(actor: Actor): Promise<PromotionCase[]>
     order by c.created_at desc`;
 }
 
+/**
+ * Approve or decline a drafted case, from the Talent page, Home or the agent.
+ * Managers only; a case already decided keeps its first decision.
+ */
+export async function decidePromotionCase(actor: Actor, id: number, approve: boolean): Promise<PromotionCase["status"]> {
+  requireManager(actor, "Promotion cases");
+  const decidedBy = actor.kind === "user" ? actor.personId : null;
+  const status = approve ? "approved" : "rejected";
+  await db()`
+    update promotion_cases set status = ${status}, decided_by = ${decidedBy}, decided_at = now()
+    where id = ${id} and status = 'pending_approval'`;
+  const [row] = await db()<{ status: PromotionCase["status"] }[]>`select status from promotion_cases where id = ${id}`;
+  if (!row) throw new Error(`No promotion case with id ${id}.`);
+  return row.status;
+}
+
 // ---------- Digests ----------
 
 export async function latestDigest(): Promise<{ week_of: string; body: string } | null> {

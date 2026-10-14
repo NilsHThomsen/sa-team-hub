@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { decideShoutout } from "@/agent/lib/data";
+import { decidePromotionCase, decideShoutout } from "@/agent/lib/data";
 import { wakeShoutoutWorkflow } from "@/agent/lib/shoutouts";
 import { requireActor } from "@/lib/viewer";
 
@@ -22,5 +22,19 @@ export async function answerShoutout(id: number, accept: boolean): Promise<{ err
   }
   revalidatePath("/");
   revalidatePath("/achievements");
+  return {};
+}
+
+/** Approve or Decline on a drafted promotion case (Talent page and Home). The data layer checks it is a manager. */
+export async function answerPromotionCase(id: number, approve: boolean): Promise<{ error?: string }> {
+  const { actor } = await requireActor();
+  try {
+    await decidePromotionCase(actor, id, approve);
+  } catch (err) {
+    if (err instanceof Error) return { error: err.message };
+    throw err;
+  }
+  revalidatePath("/");
+  revalidatePath("/talent");
   return {};
 }

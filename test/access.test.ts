@@ -32,6 +32,7 @@ import {
   recordAcceptedShoutout,
   listTalentRatings,
   setTalentRating,
+  decidePromotionCase,
 } from "../agent/lib/data";
 import { wakeShoutoutWorkflow } from "../agent/lib/shoutouts";
 import { db } from "../agent/lib/db";
@@ -378,5 +379,32 @@ describe("9-box", () => {
     assert.ok(moved.note); // the earlier note is kept when none is given
     await setTalentRating(manager, { personId: "tom-becker", performance: 2, potential: 1 });
     await assert.rejects(setTalentRating(manager, { personId: "jordan-hayes", performance: 3, potential: 3 }), AccessDenied);
+  });
+});
+
+describe("promotion case decisions", () => {
+  const insertCase = async (key: string) => {
+    const [row] = await db()<{ id: number }[]>`
+      insert into promotion_cases (person_id, target_level, status, summary, case_json, model_used, created_by, workflow_call)
+      values ('priya-nair', 'PSA', 'pending_approval', 'Test case', '{}', 'test', 'jordan-hayes', ${key})
+      returning id`;
+    return row.id;
+  };
+  after(async () => {
+    await db()`delete from promotion_cases where workflow_call like 'test-decide-%'`;
+  });
+
+  test("only a manager can decide", async () => {
+    const id = await insertCase("test-decide-ic");
+    await assert.rejects(decidePromotionCase(priya, id, true), AccessDenied);
+    await assert.rejects(decidePromotionCase(app, id, true), AccessDenied);
+  });
+
+  test("the first decision wins, and it shows in action items until then", async () => {
+    const id = await insertCase("test-decide-first");
+    assert.ok((await actionItems(manager)).some((a) => a.promotionCaseId === id));
+    assert.equal(await decidePromotionCase(manager, id, false), "rejected");
+    assert.equal(await decidePromotionCase(manager, id, true), "rejected");
+    assert.ok(!(await actionItems(manager)).some((a) => a.promotionCaseId === id));
   });
 });

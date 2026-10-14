@@ -5,6 +5,7 @@ import { dealCoverage, latestDigest, listAchievements, listDevPlans, listPeople,
 import { byPeople, PEOPLE_PARAM, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "./_person-filter";
+import { PromotionButtons } from "./_promotion-buttons";
 import { ShoutoutButtons } from "./_shoutout-buttons";
 import { PageHeader, Pill, Section, Stat } from "./_ui";
 
@@ -89,6 +90,7 @@ export default async function HomePage({ searchParams }: { readonly searchParams
                     {KIND_LABEL[a.kind]} · {a.detail}
                   </div>
                   {a.shoutoutId ? <ShoutoutButtons id={a.shoutoutId} /> : null}
+                  {a.promotionCaseId ? <PromotionButtons id={a.promotionCaseId} /> : null}
                 </div>
               </li>
             ))}
