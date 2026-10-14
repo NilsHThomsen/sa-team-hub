@@ -1,7 +1,7 @@
 "use client";
 
 import type { UserContent } from "ai";
-import { useEveAgent } from "eve/react";
+import { openConversationInputs, useEveAgent } from "eve/react";
 import {
   AlertCircleIcon,
   ArrowLeftIcon,
@@ -107,6 +107,21 @@ export function AgentChat({
       (input) => input.request.kind === "question" && input.request.action.callId === callId,
     );
 
+  // A specialist (subagent) asks for confirmation from its own run, so the request isn't on any
+  // tool part of this conversation. Show those under the messages so they can still be answered.
+  const shownInline = new Set<string>();
+  for (const message of agent.data.messages) {
+    for (const part of message.parts) {
+      if (part.type !== "dynamic-tool") continue;
+      const inline = part.toolMetadata?.eve?.inputRequest;
+      if (inline) shownInline.add(inline.requestId);
+      for (const question of questionsFor(part.toolCallId)) shownInline.add(question.request.requestId);
+    }
+  }
+  const taskInputs = openConversationInputs(agent.data).filter(
+    (input) => input.taskId !== undefined && !shownInline.has(input.request.requestId),
+  );
+
   const requestCancellation = () => {
     setCancellationError(undefined);
     void agent.cancel().catch((error: unknown) => {
@@ -176,6 +191,17 @@ export function AgentChat({
           />
         ),
       )}
+      {taskInputs.map(({ request }) => (
+        <TaskInputRequest
+          disabled={!canRespond(request.requestId)}
+          key={request.requestId}
+          onRespond={(response) => {
+            setCancellationError(undefined);
+            return agent.respond([response]);
+          }}
+          request={request}
+        />
+      ))}
       {showPendingThinking ? <PendingThinking /> : null}
       {errorMessage ? <ErrorMessage message={errorMessage} /> : null}
     </>
@@ -325,6 +351,61 @@ function ComposerAction({
     >
       <SquareIcon className="size-3 fill-current" />
     </PromptInputButton>
+  );
+}
+
+type TaskRequest = ReturnType<typeof openConversationInputs>[number]["request"];
+type TaskResponse = Parameters<ReturnType<typeof useEveAgent>["respond"]>[0][number];
+
+function TaskInputRequest({
+  disabled,
+  onRespond,
+  request,
+}: {
+  readonly disabled: boolean;
+  readonly onRespond: (response: TaskResponse) => unknown;
+  readonly request: TaskRequest;
+}) {
+  const [text, setText] = useState("");
+  const options = request.options ?? [];
+  return (
+    <div className="space-y-3 rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3">
+      <p className="text-muted-foreground text-sm">{request.prompt}</p>
+      {options.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {options.map((option) => (
+            <Button
+              disabled={disabled}
+              key={option.id}
+              onClick={() => void onRespond({ optionId: option.id, requestId: request.requestId })}
+              size="sm"
+              type="button"
+              variant={option.style === "danger" ? "destructive" : "default"}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      ) : (
+        <form
+          className="flex gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (text.trim()) void onRespond({ requestId: request.requestId, text: text.trim() });
+          }}
+        >
+          <input
+            className="flex-1 rounded-md border bg-background px-2 py-1 text-sm"
+            disabled={disabled}
+            onChange={(event) => setText(event.currentTarget.value)}
+            value={text}
+          />
+          <Button disabled={disabled} size="sm" type="submit">
+            Send
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }
 
