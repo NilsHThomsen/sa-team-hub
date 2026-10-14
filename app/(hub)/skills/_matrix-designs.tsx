@@ -3,11 +3,11 @@ import type { Person, SkillRow } from "@/agent/lib/data";
 import { SKILL_LEVEL_MEANING, SKILL_LEVELS, skillLevelName } from "@/agent/lib/skill-levels";
 import { cn } from "@/lib/utils";
 
-// Three candidate looks for the people-as-columns matrix (?design=signal|heatmap|bars),
+// Three candidate looks for the people-as-columns matrix (?design=signal|heatmap|bars|signal-bars),
 // so the team can pick one on the preview deployment. Same data and layout; only
 // how a level or a status is drawn changes. The chosen one replaces the others.
 
-export const DESIGNS = ["signal", "heatmap", "bars"] as const;
+export const DESIGNS = ["signal", "heatmap", "bars", "signal-bars"] as const;
 export type Design = (typeof DESIGNS)[number];
 export const isDesign = (v: unknown): v is Design => typeof v === "string" && (DESIGNS as readonly string[]).includes(v);
 
@@ -187,7 +187,39 @@ const bars: Look = {
   ),
 };
 
-const LOOKS: Record<Design, Look> = { signal, heatmap, bars };
+// ---------- D. Signal with bars: Signal, but product levels as segmented bars ----------
+
+function Segments({ level }: { readonly level: number }) {
+  return (
+    <span className="inline-flex gap-0.5">
+      {[1, 2, 3, 4].map((i) => (
+        <span className={cn("h-1.5 w-4 rounded-full", i <= level ? "bg-indigo-600" : "bg-slate-200")} key={i} />
+      ))}
+    </span>
+  );
+}
+
+const signalBars: Look = {
+  ...signal,
+  level: (level) => <Segments level={level} />,
+  legend: (
+    <>
+      {SKILL_LEVELS.map((name, i) => (
+        <span className="inline-flex items-center gap-1.5" key={name}>
+          <Segments level={i} /> {name}
+        </span>
+      ))}
+      <span className="mx-1 h-4 w-px bg-border" />
+      {(["complete", "in_progress", "not_started"] as const).map((s) => (
+        <span className="inline-flex items-center gap-1.5" key={s}>
+          <StatusIcon status={s} /> {STATUS_LABEL[s]}
+        </span>
+      ))}
+    </>
+  ),
+};
+
+const LOOKS: Record<Design, Look> = { signal, heatmap, bars, "signal-bars": signalBars };
 
 export function SkillsMatrixDesign({
   design,
