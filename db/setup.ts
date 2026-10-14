@@ -331,7 +331,10 @@ async function seed() {
   const incomplete = peopleCount > 0 && skillCount === 0 && dealCount === 0;
   if (incomplete) console.log("Found people but no other data; reseeding the demo data.");
 
+  // Slack member ids are entered by hand on Settings, so carry them across a reset.
+  let slackIds: { id: string; slack_user_id: string }[] = [];
   if (reset || incomplete) {
+    slackIds = await sql`select id, slack_user_id from people where slack_user_id is not null`;
     await sql`truncate talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
@@ -362,6 +365,10 @@ async function seed() {
   // One insert per table (rather than per row), so a reset over a slow connection takes seconds.
   console.log("Loading demo data…");
   await sql`insert into people ${sql(people.map((p) => ({ id: p.id, name: p.name, title: p.title, level: p.level, role: p.role, segment: p.segment, location: p.location, start_date: p.start, manager_id: p.id === MANAGER ? null : MANAGER })))}`;
+  for (const { id, slack_user_id } of slackIds) {
+    await sql`update people set slack_user_id = ${slack_user_id} where id = ${id}`;
+  }
+  if (slackIds.length > 0) console.log(`Kept ${slackIds.length} Slack member id${slackIds.length === 1 ? "" : "s"}.`);
 
   await sql`insert into skills ${sql(Object.entries(levels).flatMap(([personId, ls]) => ls.map((level, i) => ({ person_id: personId, category: "product", name: productSkills[i], level }))))}`;
   await sql`insert into skills ${sql(Object.entries(certs).flatMap(([personId, list]) => list.map(([name, status, done, due]) => ({ person_id: personId, category: "certification", name, status, completed_on: done === null ? null : day(done), due_on: due === null ? null : day(due) }))))}`;
