@@ -7,7 +7,7 @@ import { skillLevelName } from "../lib/skill-levels";
 export default defineTool({
   description:
     "Get one person's profile: skills matrix entries, and (if the user may see them) their achievements from the last 12 months, " +
-    "career goal, development plan and, for managers only, retention risk. ICs can see a colleague's skills but not their achievements, plan or risk.",
+    "career goal, every development plan and next step (a person can have several), and, for managers only, retention risk. ICs can see a colleague's skills but not their achievements, plan or risk.",
   inputSchema: z.object({
     person: z.string().min(1).describe("Person id (e.g. 'priya-nair') or name"),
   }),
@@ -40,7 +40,7 @@ export default defineTool({
       skills,
       achievements: achievements.map(({ occurred_on, category, title, impact }) => ({ occurred_on, category, title, impact })),
       careerGoal: goals.find((g) => g.person_id === found.id) ?? null,
-      devPlan: plans.find((p) => p.person_id === found.id) ?? null,
+      devPlans: plans.filter((p) => p.person_id === found.id).map(({ goal, target_level, next_step, due_on, status, overdue }) => ({ goal, target_level, next_step, due_on, status, overdue })),
       retentionRisk: risks.find((r) => r.person_id === found.id) ?? undefined,
     };
   },
