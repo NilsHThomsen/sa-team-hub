@@ -103,14 +103,15 @@ export function SkillsByRow({ people, skills, viewerId }: { readonly people: rea
               </tr>
               {names(section.category).map((name) => (
                 <tr className="group" key={name}>
-                  <td className="sticky left-0 bg-card px-4 py-2 text-foreground group-hover:bg-muted">{name}</td>
+                  {/* A line above each skill row (border-separate tables draw borders per cell, not per row). */}
+                  <td className="sticky left-0 border-t bg-card px-4 py-2 text-foreground group-hover:bg-muted">{name}</td>
                   {people.map((p) => {
                     const skill = find(p.id, section.category, name);
                     const level = skill?.level ?? 0;
                     const status = skill ? (skill.status ?? "not_started") : null;
                     return (
                       <td
-                        className={cn("px-2 py-2 text-center group-hover:bg-muted", mine(p.id))}
+                        className={cn("border-t px-2 py-2 text-center group-hover:bg-muted", mine(p.id))}
                         key={p.id}
                         title={
                           section.category === "product"
