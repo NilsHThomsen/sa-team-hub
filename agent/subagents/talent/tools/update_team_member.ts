@@ -1,9 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { findPerson } from "../lib/data";
-import { PERSON_LEVELS, upsertPerson } from "../lib/edits";
-import { managerConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { findPerson } from "../../../lib/data";
+import { PERSON_LEVELS, upsertPerson } from "../../../lib/edits";
+import { managerConfirms } from "../../../lib/policies";
 
 export default defineTool({
   description:

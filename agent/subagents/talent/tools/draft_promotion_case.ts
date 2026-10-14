@@ -1,10 +1,10 @@
 import { generateText, Output } from "ai";
 import { defineWorkflowTool } from "eve/tools";
 import { z } from "zod";
-import { db } from "../lib/db";
-import { type Evidence, type Level, NEXT_LEVEL, scoreAgainst } from "../lib/framework";
-import { gatewayOptions, primaryModel } from "../lib/models";
-import { managerOnly } from "../lib/policies";
+import { db } from "../../../lib/db";
+import { type Evidence, type Level, NEXT_LEVEL, scoreAgainst } from "../../../lib/framework";
+import { gatewayOptions, primaryModel } from "../../../lib/models";
+import { managerOnly } from "../../../lib/policies";
 
 // Why a workflow tool and not a plain tool: drafting a case is several steps,
 // one of them a model call that can fail, and it ends by waiting for a manager

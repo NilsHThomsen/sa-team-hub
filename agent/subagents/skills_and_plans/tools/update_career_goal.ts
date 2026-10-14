@@ -1,9 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { CAREER_GOALS } from "../lib/career-goals";
-import { findPerson, setCareerGoal } from "../lib/data";
-import { signedInConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { CAREER_GOALS } from "../../../lib/career-goals";
+import { findPerson, setCareerGoal } from "../../../lib/data";
+import { signedInConfirms } from "../../../lib/policies";
 
 export default defineTool({
   description:

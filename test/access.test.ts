@@ -46,6 +46,7 @@ import { editAchievement, setDevPlan, setSkill, setSkillNeed, upsertCandidate, u
 import { postDigestToSlack } from "../agent/lib/slack";
 import { slackAuthFor } from "../agent/lib/slack-auth";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
+import { callerIsManager } from "../agent/lib/specialists";
 
 const manager: Actor = { kind: "user", personId: "jordan-hayes", name: "Nils Thomsen", role: "manager" };
 const priya: Actor = { kind: "user", personId: "priya-nair", name: "Priya Nair", role: "ic" };
@@ -499,5 +500,18 @@ describe("edit tools", () => {
     const person = await upsertPerson(manager, { name: "Test Person", title: "Solutions Architect", level: "SA1", segment: "Enterprise", location: "Sydney" });
     assert.equal(person.id, "test-person");
     assert.equal(person.role, "ic");
+  });
+});
+
+describe("talent specialist availability", () => {
+  const ctx = (auth: object | null) => ({ session: { auth: { current: auth } } }) as never;
+  const ic = { authenticator: "sa-team-hub", principalId: "priya-nair", principalType: "user", attributes: { role: "ic", name: "Priya Nair" } };
+  const mgr = { ...ic, principalId: "jordan-hayes", attributes: { role: "manager", name: "Nils Thomsen" } };
+  test("exists only for a manager outside shared Slack channels", () => {
+    assert.equal(callerIsManager(ctx(mgr)), true);
+    assert.equal(callerIsManager(ctx(ic)), false);
+    assert.equal(callerIsManager(ctx({ ...mgr, attributes: { ...mgr.attributes, channel: "slack-shared" } })), false);
+    assert.equal(callerIsManager(ctx({ authenticator: "app", principalId: "eve:app", principalType: "runtime", attributes: {} })), false);
+    assert.equal(callerIsManager(ctx(null)), false);
   });
 });

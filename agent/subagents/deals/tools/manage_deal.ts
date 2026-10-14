@@ -1,10 +1,10 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { FORECASTS, findDeal, findPerson, PRESALES_STAGES } from "../lib/data";
-import { upsertDeal } from "../lib/edits";
-import { fiscalQuarter } from "../lib/fiscal";
-import { managerConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { FORECASTS, findDeal, findPerson, PRESALES_STAGES } from "../../../lib/data";
+import { upsertDeal } from "../../../lib/edits";
+import { fiscalQuarter } from "../../../lib/fiscal";
+import { managerConfirms } from "../../../lib/policies";
 
 export default defineTool({
   description:

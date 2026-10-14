@@ -1,8 +1,8 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { findPerson, setTalentRating } from "../lib/data";
-import { managerConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { findPerson, setTalentRating } from "../../../lib/data";
+import { managerConfirms } from "../../../lib/policies";
 
 const LEVEL = { low: 1, medium: 2, high: 3 } as const;
 

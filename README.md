@@ -28,9 +28,12 @@ Browser ──► Next.js 16 (App Router)
              ├─ app/s               chat UI (useEveAgent)
              └─ /eve/v1/*  ──►  eve agent (withEve)
                                   ├─ channels/eve.ts   verifies the same cookie
-                                  ├─ tools/*           role-checked tools
-                                  ├─ draft_promotion_case   Workflow: gather → score → draft (AI SDK) → save → ask manager (or Talent / Home buttons) → decide
-                                  ├─ skills/promotion-cases.md
+                                  ├─ tools/*           everyday tools: action items, achievements, shout-outs, digest
+                                  ├─ subagents/deals             coverage, scorecard, next steps, deal admin
+                                  ├─ subagents/skills_and_plans  skills matrix, gaps, dev plans, career goals
+                                  ├─ subagents/talent            managers only (defineDynamic: absent for SAs)
+                                  │    ├─ draft_promotion_case   Workflow: gather → score → draft (AI SDK) → save → ask manager (or Talent / Home buttons) → decide
+                                  │    └─ skills/promotion-cases.md
                                   └─ schedules/friday-digest.md
              agent/lib/data.ts  ◄── one data layer for pages and tools, access rules next to the SQL
                     │
@@ -46,7 +49,8 @@ One HS256-signed, httpOnly session cookie is read by both the Next.js proxy and 
 1. **Pages**: the Talent nav link is hidden from ICs, and the page checks the role again for a typed URL.
 2. **Tool approval policies** (`agent/lib/policies.ts`): manager-only tools are denied before they run for anyone else; retention changes need the manager to confirm in chat.
 3. **Data layer** (`agent/lib/data.ts`): every query takes an `Actor`. ICs are forced to their own achievements, plans and deals; manager-only tables throw `AccessDenied`. The scheduled digest runs as eve's app principal, which can write digests but cannot read retention data.
-4. **The agent** starts with `defaultTools: false`, so it has only the tools listed above, and unknown callers fail closed (`actorFromAuth`).
+4. **The agent** starts with `defaultTools: false` (and the subagents disable the shell, file and web tools explicitly), so it has only the tools listed above, and unknown callers fail closed (`actorFromAuth`).
+5. **Subagents**: the main agent routes to three specialists, each with only its own tools. They run with the caller's own sign-in, so the same rules apply inside them. The `talent` specialist is resolved per session with `defineDynamic` and simply doesn't exist for SAs, the digest schedule or shared Slack channels.
 
 The demo sign-in (pick a person plus a shared password) stands in for SSO. Swapping it for Okta or Sign in with Vercel only changes how the cookie is issued.
 

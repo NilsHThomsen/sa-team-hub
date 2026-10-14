@@ -1,8 +1,8 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { decidePromotionCase, listPromotionCases } from "../lib/data";
-import { managerOnly } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { decidePromotionCase, listPromotionCases } from "../../../lib/data";
+import { managerOnly } from "../../../lib/policies";
 
 export default defineTool({
   description:

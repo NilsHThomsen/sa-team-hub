@@ -1,9 +1,9 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { findPerson } from "../lib/data";
-import { DEV_PLAN_STATUSES, setDevPlan } from "../lib/edits";
-import { signedInConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { findPerson } from "../../../lib/data";
+import { DEV_PLAN_STATUSES, setDevPlan } from "../../../lib/edits";
+import { signedInConfirms } from "../../../lib/policies";
 
 export default defineTool({
   description:

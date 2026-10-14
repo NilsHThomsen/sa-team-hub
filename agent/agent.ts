@@ -25,7 +25,8 @@ export default defineAgent({
   }),
 
   // Least privilege: no shell, file system or web tools. This agent only needs
-  // the typed tools in agent/tools, each of which enforces the caller's role.
+  // the typed tools in agent/tools and its specialist subagents, each of which
+  // enforces the caller's role.
   defaultTools: false,
 
   // Guard rails on spend. Gateway reports cost per step; eve pauses the session

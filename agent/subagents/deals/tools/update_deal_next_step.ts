@@ -1,8 +1,8 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { findDeal, PRESALES_STAGES, updateDealNextStep } from "../lib/data";
-import { signedInConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { findDeal, PRESALES_STAGES, updateDealNextStep } from "../../../lib/data";
+import { signedInConfirms } from "../../../lib/policies";
 
 export default defineTool({
   description:

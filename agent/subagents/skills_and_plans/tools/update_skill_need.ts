@@ -1,8 +1,8 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
-import { actorFromAuth } from "../lib/actor";
-import { SKILL_CATEGORIES, setSkillNeed } from "../lib/edits";
-import { managerConfirms } from "../lib/policies";
+import { actorFromAuth } from "../../../lib/actor";
+import { SKILL_CATEGORIES, setSkillNeed } from "../../../lib/edits";
+import { managerConfirms } from "../../../lib/policies";
 
 export default defineTool({
   description:
