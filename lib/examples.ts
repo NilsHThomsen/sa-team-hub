@@ -11,10 +11,12 @@ export function examplePrompts(role: Role): string[] {
         "Log a win for Hannah Kim: she ran the Kestrel Insurance AI workshop yesterday with 12 attendees.",
         "Who on the team is aiming for a manager role, and do their dev plans support it?",
         "Draft a promotion case for Priya Nair to Principal SA.",
+        "Give Priya Nair a shout-out for mentoring the two new SAs through their first POCs.",
         "Mei Chen accepted the counter-offer. Lower her retention risk to medium.",
       ]
     : [
         "Log a win: I presented the Harbour Bank architecture at the APJ field call today.",
+        "Send Hannah Kim a shout-out for jumping in on my Aurora Logistics demo at short notice.",
         "Update Aurora Logistics: POC success criteria signed off, so the technical win is secured. Next step is the commercial proposal with Tama on Friday.",
         "What skills should I focus on next quarter?",
         "How is my development plan tracking?",

@@ -183,6 +183,118 @@ export async function addAchievement(
   return { id: existing.id, duplicate: true };
 }
 
+// ---------- Shout-outs ----------
+// One teammate recognises another. It only reaches the recipient's achievements
+// doc once they accept it, so nobody's record changes without their say.
+
+export const SHOUTOUT_CATEGORIES = ["customer", "pipeline", "enablement", "community", "leadership"] as const;
+
+export interface Shoutout {
+  id: number;
+  from_person: string;
+  from_name: string;
+  to_person: string;
+  to_name: string;
+  category: string;
+  title: string;
+  message: string;
+  status: "pending" | "accepted" | "declined" | "expired";
+  created_at: string;
+  webhook_url: string | null;
+}
+
+function selectShoutouts(sql: ReturnType<typeof db>) {
+  return sql`
+    select s.id, s.from_person, f.name as from_name, s.to_person, t.name as to_name, s.category, s.title, s.message,
+           s.status, to_char(s.created_at, 'YYYY-MM-DD') as created_at, s.webhook_url
+    from shoutouts s join people f on f.id = s.from_person join people t on t.id = s.to_person`;
+}
+
+export async function createShoutout(
+  actor: Actor,
+  input: { toPersonId: string; category: string; title: string; message: string },
+  idempotencyKey: string,
+): Promise<Shoutout> {
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can send a shout-out.");
+  if (input.toPersonId === actor.personId) throw new AccessDenied("Shout-outs are for recognising someone else. Log your own wins as achievements.");
+  const sql = db();
+  await sql`
+    insert into shoutouts (from_person, to_person, category, title, message, idempotency_key)
+    values (${actor.personId}, ${input.toPersonId}, ${input.category}, ${input.title}, ${input.message}, ${idempotencyKey})
+    on conflict (idempotency_key) do nothing`;
+  const [row] = await sql<Shoutout[]>`
+    ${selectShoutouts(sql)}
+    where s.idempotency_key = ${idempotencyKey}`;
+  return row;
+}
+
+export async function getShoutout(id: number): Promise<Shoutout | null> {
+  const sql = db();
+  const [row] = await sql<Shoutout[]>`
+    ${selectShoutouts(sql)}
+    where s.id = ${id}`;
+  return row ?? null;
+}
+
+export async function setShoutoutWebhook(id: number, url: string): Promise<void> {
+  await db()`update shoutouts set webhook_url = ${url} where id = ${id}`;
+}
+
+/** Shout-outs waiting for this person's decision. Only the recipient sees them. */
+export async function listPendingShoutoutsFor(actor: Actor): Promise<Shoutout[]> {
+  if (actor.kind !== "user") return [];
+  const sql = db();
+  return sql<Shoutout[]>`
+    ${selectShoutouts(sql)}
+    where s.to_person = ${actor.personId} and s.status = 'pending' order by s.created_at`;
+}
+
+/** Shout-outs this person sent, newest first, so they can see who has answered. */
+export async function listSentShoutouts(actor: Actor): Promise<Shoutout[]> {
+  if (actor.kind !== "user") return [];
+  const sql = db();
+  return sql<Shoutout[]>`
+    ${selectShoutouts(sql)}
+    where s.from_person = ${actor.personId} order by s.created_at desc limit 20`;
+}
+
+/**
+ * The recipient accepts or declines. Nobody else can, managers included: it is
+ * the recipient's record. Returns the webhook to wake the waiting workflow.
+ */
+export async function decideShoutout(actor: Actor, id: number, accept: boolean): Promise<{ status: Shoutout["status"]; webhookUrl: string | null }> {
+  if (actor.kind !== "user") throw new AccessDenied("Only the recipient can answer a shout-out.");
+  const shoutout = await getShoutout(id);
+  if (!shoutout || shoutout.to_person !== actor.personId) throw new AccessDenied("Only the recipient can answer a shout-out.");
+  if (shoutout.status !== "pending") return { status: shoutout.status, webhookUrl: null };
+  const status = accept ? "accepted" : "declined";
+  await db()`update shoutouts set status = ${status}, decided_at = now() where id = ${id} and status = 'pending'`;
+  return { status, webhookUrl: shoutout.webhook_url };
+}
+
+/**
+ * Called by the workflow once the recipient has accepted. Writes the achievement
+ * with the sender as `logged_by`; keyed on the shout-out so a replay writes once.
+ */
+export async function recordAcceptedShoutout(id: number): Promise<{ achievementId: number } | null> {
+  const sql = db();
+  const shoutout = await getShoutout(id);
+  if (!shoutout || shoutout.status !== "accepted") return null;
+  const key = `shoutout:${id}`;
+  await sql`
+    insert into achievements (person_id, occurred_on, category, title, impact, logged_by, idempotency_key)
+    values (${shoutout.to_person}, ${shoutout.created_at}, ${shoutout.category},
+            ${`Shout-out from ${shoutout.from_name}: ${shoutout.title}`}, ${shoutout.message}, ${shoutout.from_person}, ${key})
+    on conflict (idempotency_key) do nothing`;
+  const [row] = await sql<{ id: number }[]>`select id from achievements where idempotency_key = ${key}`;
+  await sql`update shoutouts set achievement_id = ${row.id} where id = ${id}`;
+  return { achievementId: row.id };
+}
+
+export async function expireShoutout(id: number): Promise<void> {
+  await db()`update shoutouts set status = 'expired', decided_at = now() where id = ${id} and status = 'pending'`;
+}
+
 // ---------- Development plans ----------
 
 export interface DevPlan {

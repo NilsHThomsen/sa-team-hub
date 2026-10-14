@@ -29,7 +29,7 @@ export default async function DevPlansPage({ searchParams }: { readonly searchPa
       />
       {groups.map(({ heading, people: members }) => (
         <Section key={heading} note={`${members.length} ${members.length === 1 ? "person" : "people"}`} title={heading}>
-          <Table head={["Person", "Career goal", "Plan", "Target", "Next step", "Due", "Status"]}>
+          <Table head={["Person", "Career goal", "Plan", "Next step", "Due", "Status"]}>
             {members.map((g) => (
               <PlanRows goal={g} key={g.person_id} plans={plans.filter((p) => p.person_id === g.person_id)} />
             ))}
@@ -60,7 +60,7 @@ function PlanRows({ goal, plans }: { readonly goal: CareerGoalRow; readonly plan
     return (
       <tr>
         {who}
-        <Td className="text-muted-foreground" colSpan={5}>
+        <Td className="text-muted-foreground" colSpan={4}>
           No development plan yet.
         </Td>
       </tr>
@@ -70,7 +70,6 @@ function PlanRows({ goal, plans }: { readonly goal: CareerGoalRow; readonly plan
     <tr key={p.id}>
       {i === 0 ? who : <><Td /><Td /></>}
       <Td>{p.goal}</Td>
-      <Td>{p.target_level}</Td>
       <Td>{p.next_step}</Td>
       <Td className="whitespace-nowrap text-muted-foreground">{p.due_on}</Td>
       <Td>

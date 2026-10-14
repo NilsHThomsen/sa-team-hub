@@ -11,7 +11,7 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
   // The data functions would also throw AccessDenied: three layers, same rule.
   if (!isManager(actor)) return <ManagerOnly />;
 
-  const [allRisks, allSuccession, candidates, allCases, people, selected] = await Promise.all([
+  const [allRisks, allSuccession, allCandidates, allCases, people, selected] = await Promise.all([
     listRetentionRisks(actor),
     listSuccession(actor),
     listCandidates(actor),
@@ -24,6 +24,8 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
   // Succession names candidates as text (some are external), so match on name.
   const idByName = new Map(people.map((p) => [p.name, p.id]));
   const succession = byPeople(allSuccession, selected, (s) => idByName.get(s.candidate) ?? null);
+  // Bench candidates are external, so a team member filter matches none of them, the same as Succession.
+  const candidates = byPeople(allCandidates, selected, (c) => idByName.get(c.name) ?? null);
 
   return (
     <>
@@ -90,7 +92,7 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
           </Table>
         </Section>
 
-        <Section note={selected ? "External candidates, not filtered" : undefined} title="Warm bench">
+        <Section title="Warm bench">
           <Table head={["Candidate", "Focus", "Stage", "Last contact", "Notes"]}>
             {candidates.map((c) => (
               <tr key={c.id}>

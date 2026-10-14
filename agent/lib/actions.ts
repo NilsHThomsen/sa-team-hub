@@ -1,21 +1,23 @@
 import { type Actor, isManager } from "./actor";
-import { alignmentFlag, dealCoverage, LABEL, listCareerGoals, listDevPlans, listPromotionCases, listRetentionRisks, skillsMatrix, STALE_DAYS } from "./data";
+import { alignmentFlag, dealCoverage, LABEL, listCareerGoals, listDevPlans, listPendingShoutoutsFor, listPromotionCases, listRetentionRisks, skillsMatrix, STALE_DAYS } from "./data";
 
 // The home page's "Action items": what this person should do next, built only
 // from data functions that already enforce access, so an IC never sees a
 // colleague's private records here and a manager sees the team's.
 
 export interface ActionItem {
-  kind: "approval" | "deal" | "dev_plan" | "retention" | "career_goal" | "enablement";
+  kind: "shoutout" | "approval" | "deal" | "dev_plan" | "retention" | "career_goal" | "enablement";
   title: string;
   detail: string;
   href: string;
   urgent: boolean;
   /** Who the item is about, for the manager's person filter. */
   personId: string | null;
+  /** Set on shout-out items, which the home page answers in place. */
+  shoutoutId?: number;
 }
 
-const KIND_ORDER: ActionItem["kind"][] = ["approval", "deal", "dev_plan", "retention", "career_goal", "enablement"];
+const KIND_ORDER: ActionItem["kind"][] = ["shoutout", "approval", "deal", "dev_plan", "retention", "career_goal", "enablement"];
 const DUE_SOON_DAYS = 30;
 
 export async function actionItems(actor: Actor): Promise<ActionItem[]> {
@@ -23,7 +25,8 @@ export async function actionItems(actor: Actor): Promise<ActionItem[]> {
   const manager = isManager(actor);
   const me = actor.personId;
 
-  const [coverage, plans, goals, skills, cases, risks] = await Promise.all([
+  const [shoutouts, coverage, plans, goals, skills, cases, risks] = await Promise.all([
+    listPendingShoutoutsFor(actor),
     dealCoverage(actor),
     listDevPlans(actor),
     listCareerGoals(actor),
@@ -32,6 +35,12 @@ export async function actionItems(actor: Actor): Promise<ActionItem[]> {
     manager ? listRetentionRisks(actor) : Promise.resolve([]),
   ]);
   const items: ActionItem[] = [];
+
+  // Shout-outs a teammate sent you, waiting for you to accept before they reach your achievements doc.
+  // personId is null so a manager's person filter never hides their own.
+  for (const s of shoutouts) {
+    items.push({ kind: "shoutout", title: `${s.from_name} sent you a shout-out: ${s.title}`, detail: s.message, href: "/achievements", urgent: false, personId: null, shoutoutId: s.id });
+  }
 
   // Approvals: promotion cases drafted and waiting for the manager's decision in chat.
   for (const c of cases.filter((c) => c.status === "pending_approval")) {
@@ -88,7 +97,7 @@ export async function actionItems(actor: Actor): Promise<ActionItem[]> {
     );
   }
 
-  // Certifications and enablement due soon or overdue (an SA's own).
+  // Certifications and soft skills (enablement) due soon or overdue (an SA's own).
   const today = Date.now();
   for (const s of skills) {
     if (s.person_id !== me || s.status === "complete" || !s.due_on) continue;

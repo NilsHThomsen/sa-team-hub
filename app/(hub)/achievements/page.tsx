@@ -1,12 +1,13 @@
-import { listAchievements, listPeople } from "@/agent/lib/data";
+import Link from "next/link";
+import { listAchievements, listPeople, listSentShoutouts } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
-import { PageHeader, Table, Td } from "../_ui";
+import { PageHeader, Pill, Section, Table, Td } from "../_ui";
 
 export default async function AchievementsPage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
-  const [all, people, selected] = await Promise.all([listAchievements(actor, { days: 365 }), listPeople(), selectedPeople(searchParams)]);
+  const [all, people, selected, sent] = await Promise.all([listAchievements(actor, { days: 365 }), listPeople(), selectedPeople(searchParams), listSentShoutouts(actor)]);
   const achievements = byPeople(all, selected, (a) => a.person_id);
 
   return (
@@ -19,7 +20,14 @@ export default async function AchievementsPage({ searchParams }: { readonly sear
         }
         title="Achievements Doc"
         // ICs only ever see their own rows, so the filter is for managers.
-        actions={viewer.role === "manager" ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
+        actions={
+          <div className="flex items-center gap-3">
+            {viewer.role === "manager" ? <PersonFilter people={people.filter((p) => p.role === "ic")} /> : null}
+            <Link className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted" href="/s" title="Ask the agent, e.g. 'Send Hannah a shout-out for the Kestrel workshop'">
+              Send a shout-out
+            </Link>
+          </div>
+        }
       />
       <Table head={["Date", "Person", "Category", "Achievement", "Impact"]}>
         {achievements.map((a) => (
@@ -32,6 +40,24 @@ export default async function AchievementsPage({ searchParams }: { readonly sear
           </tr>
         ))}
       </Table>
+      {sent.length > 0 ? (
+        <div className="mt-8">
+          <Section note="They go into the recipient's doc once they accept" title="Shout-outs you sent">
+            <Table head={["Sent", "To", "Shout-out", "Status"]}>
+              {sent.map((s) => (
+                <tr key={s.id}>
+                  <Td className="whitespace-nowrap text-muted-foreground">{s.created_at}</Td>
+                  <Td className="whitespace-nowrap">{s.to_name}</Td>
+                  <Td className="font-medium">{s.title}</Td>
+                  <Td>
+                    <Pill label={s.status === "pending" ? "waiting" : undefined} value={s.status} />
+                  </Td>
+                </tr>
+              ))}
+            </Table>
+          </Section>
+        </div>
+      ) : null}
     </>
   );
 }

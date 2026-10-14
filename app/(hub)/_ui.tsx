@@ -69,6 +69,10 @@ const PILL: Record<string, string> = {
   pending_approval: "bg-amber-100 text-amber-800",
   approved: "bg-emerald-100 text-emerald-800",
   rejected: "bg-slate-100 text-slate-600",
+  pending: "bg-amber-100 text-amber-800",
+  accepted: "bg-emerald-100 text-emerald-800",
+  declined: "bg-slate-100 text-slate-600",
+  expired: "bg-slate-100 text-slate-600",
 };
 
 export function Pill({ value, label }: { readonly value: string; readonly label?: string }) {

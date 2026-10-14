@@ -5,7 +5,7 @@ import { skillGaps } from "../lib/data";
 
 export default defineTool({
   description:
-    "Compare the team's skills matrix (product skills, certifications, enablement) with next quarter's needs. " +
+    "Compare the team's skills matrix (product skills, certifications, soft skills, stored as category 'enablement') with next quarter's needs. " +
     "For managers it names who qualifies and who is one step away; for ICs it returns team totals plus the IC's own gaps.",
   inputSchema: z.object({}),
   label: { start: () => "Check skills against next quarter's needs" },

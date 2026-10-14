@@ -8,8 +8,8 @@ export default async function HubLayout({ children }: { readonly children: React
   const { viewer } = await requireActor();
   const nav = [
     { href: "/", label: "Home" },
-    { href: "/skills", label: "Skills Matrix" },
     { href: "/achievements", label: "Achievements" },
+    { href: "/skills", label: "Skills Matrix" },
     { href: "/dev-plans", label: "Dev Plans" },
     { href: "/deals", label: "Deal Coverage" },
     // Hidden for ICs; the page and the data layer refuse them anyway.

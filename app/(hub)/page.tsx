@@ -5,15 +5,17 @@ import { dealCoverage, latestDigest, listAchievements, listDevPlans, listPeople,
 import { byPeople, PEOPLE_PARAM, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "./_person-filter";
+import { ShoutoutButtons } from "./_shoutout-buttons";
 import { PageHeader, Pill, Section, Stat } from "./_ui";
 
 const KIND_LABEL: Record<ActionItem["kind"], string> = {
+  shoutout: "Shout-out",
   approval: "Approval",
   deal: "Deal",
   dev_plan: "Dev plan",
   retention: "Retention",
   career_goal: "Career goal",
-  enablement: "Enablement",
+  enablement: "Soft skills",
 };
 
 export default async function HomePage({ searchParams }: { readonly searchParams: SearchParams }) {
@@ -86,6 +88,7 @@ export default async function HomePage({ searchParams }: { readonly searchParams
                   <div className="text-muted-foreground text-xs">
                     {KIND_LABEL[a.kind]} · {a.detail}
                   </div>
+                  {a.shoutoutId ? <ShoutoutButtons id={a.shoutoutId} /> : null}
                 </div>
               </li>
             ))}

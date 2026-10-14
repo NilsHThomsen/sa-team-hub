@@ -200,3 +200,20 @@ create table if not exists digests (
   body          text not null,
   created_at    timestamptz not null default now()
 );
+
+-- Shout-outs: one teammate recognises another. A workflow (agent/tools/send_shoutout.ts)
+-- waits for the recipient to accept before the shout-out becomes an achievement.
+create table if not exists shoutouts (
+  id            bigserial primary key,
+  from_person   text not null references people(id),
+  to_person     text not null references people(id),
+  category      text not null check (category in ('customer', 'pipeline', 'enablement', 'community', 'leadership')),
+  title         text not null,
+  message       text not null,
+  status        text not null default 'pending' check (status in ('pending', 'accepted', 'declined', 'expired')),
+  webhook_url   text,                        -- wakes the waiting workflow when the recipient decides
+  achievement_id bigint references achievements(id),
+  idempotency_key text unique,               -- the tool call id, so a replayed step creates one row
+  created_at    timestamptz not null default now(),
+  decided_at    timestamptz
+);

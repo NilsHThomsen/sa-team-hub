@@ -10,7 +10,8 @@ Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation
 | --- | --- | --- |
 | Home | Personal action items (approvals, deals to update, forecast conversations, overdue plans, retention follow-ups, goals and certifications due), recent wins, weekly digest | `get_my_action_items` ("what should I do today?") |
 | Achievements Doc | Team wins (managers) or your own (ICs) | `log_achievement`: "Log a win: I ran the Next.js 16 migration workshop for Acme" |
-| Skills Matrix | Product depth, certifications, enablement, gaps against next quarter's needs | `find_skill_gaps`, `get_person_profile` |
+| Shout-outs | Recipients accept or decline from Action items on Home; senders see each one's status on Achievements. Accepted ones join the recipient's achievements doc | `send_shoutout` (workflow task: parks on a webhook with a 6-hourly backstop check, expires after 7 days, DMs the recipient if their Slack is linked), `respond_to_shoutout` ("accept" in chat or a Slack DM) |
+| Skills Matrix | People as columns with product skills, certifications and soft skills as row sections (or the original per-person tables), gaps against next quarter's needs | `find_skill_gaps`, `get_person_profile` |
 | Development Plans | Grouped under each person's career goal (Principal SA, Manager, Product Manager...), with goals, next steps and overdue flags. SAs change their own goal from the page; managers can change anyone's | `update_career_goal` (asks to confirm), read via profile |
 | Deal Coverage | Stage 2+ coverage, stale next steps, missing technical wins, overloaded SAs | `review_deal_coverage`, `update_deal_next_step` (SAs update their own deals, confirm before saving, logged in `deal_updates`) |
 | Talent (managers only) | Retention risk, promotion cases, succession, warm bench | `get_talent_overview`, `update_retention_risk` (asks to confirm), `draft_promotion_case` (workflow) |

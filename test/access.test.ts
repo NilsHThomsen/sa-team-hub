@@ -23,7 +23,15 @@ import {
   setSlackLink,
   setRetentionRisk,
   skillGaps,
+  createShoutout,
+  decideShoutout,
+  expireShoutout,
+  getShoutout,
+  listPendingShoutoutsFor,
+  listSentShoutouts,
+  recordAcceptedShoutout,
 } from "../agent/lib/data";
+import { wakeShoutoutWorkflow } from "../agent/lib/shoutouts";
 import { db } from "../agent/lib/db";
 import { DEFAULT_MODEL, primaryModel } from "../agent/lib/models";
 import { actionItems } from "../agent/lib/actions";
@@ -286,5 +294,68 @@ describe("action items", () => {
 
   test("the scheduled app principal gets none", async () => {
     assert.deepEqual(await actionItems(app), []);
+  });
+});
+
+describe("shout-outs", () => {
+  const hannah: Actor = { kind: "user", personId: "hannah-kim", name: "Hannah Kim", role: "ic" };
+  const input = { toPersonId: "hannah-kim", category: "customer", title: "Test shout-out", message: "Jumped in on a demo at short notice." };
+  after(async () => {
+    await db()`delete from shoutouts where idempotency_key like 'test-shoutout-%'`;
+    await db()`delete from achievements where idempotency_key like 'shoutout:%' and title like '%Test shout-out%'`;
+  });
+
+  test("nobody can send one to themselves", async () => {
+    await assert.rejects(createShoutout(hannah, input, "test-shoutout-self"), AccessDenied);
+  });
+
+  test("sending is idempotent and nothing reaches the achievements doc until accepted", async () => {
+    const first = await createShoutout(priya, input, "test-shoutout-1");
+    const again = await createShoutout(priya, input, "test-shoutout-1");
+    assert.equal(first.id, again.id);
+    assert.equal(first.status, "pending");
+    assert.equal(await recordAcceptedShoutout(first.id), null);
+    assert.ok((await listPendingShoutoutsFor(hannah)).some((s) => s.id === first.id));
+    assert.ok(!(await listPendingShoutoutsFor(priya)).some((s) => s.id === first.id));
+    assert.ok((await listSentShoutouts(priya)).some((s) => s.id === first.id));
+    const items = await actionItems(hannah);
+    assert.equal(items[0].kind, "shoutout");
+    assert.equal(items[0].shoutoutId, first.id);
+  });
+
+  test("only the recipient can answer, managers included", async () => {
+    const { id } = await createShoutout(priya, input, "test-shoutout-2");
+    await assert.rejects(decideShoutout(priya, id, true), AccessDenied);
+    await assert.rejects(decideShoutout(manager, id, true), AccessDenied);
+    await assert.rejects(decideShoutout(app, id, true), AccessDenied);
+  });
+
+  test("accepting writes one achievement, logged by the sender", async () => {
+    const { id } = await createShoutout(priya, input, "test-shoutout-3");
+    assert.equal((await decideShoutout(hannah, id, true)).status, "accepted");
+    assert.equal((await decideShoutout(hannah, id, false)).status, "accepted"); // a second answer changes nothing
+    const first = await recordAcceptedShoutout(id);
+    const replay = await recordAcceptedShoutout(id);
+    assert.ok(first);
+    assert.equal(first.achievementId, replay?.achievementId);
+    const wins = await listAchievements(hannah);
+    const win = wins.find((a) => a.id === first.achievementId);
+    assert.equal(win?.title, "Shout-out from Priya Nair: Test shout-out");
+    assert.equal(win?.logged_by, "priya-nair");
+  });
+
+  test("declined and expired shout-outs never become achievements", async () => {
+    const declined = await createShoutout(priya, input, "test-shoutout-4");
+    await decideShoutout(hannah, declined.id, false);
+    assert.equal(await recordAcceptedShoutout(declined.id), null);
+    const expired = await createShoutout(priya, input, "test-shoutout-5");
+    await expireShoutout(expired.id);
+    assert.equal((await getShoutout(expired.id))?.status, "expired");
+    assert.equal(await recordAcceptedShoutout(expired.id), null);
+  });
+
+  test("waking the workflow never throws, even with nothing listening", async () => {
+    assert.equal(await wakeShoutoutWorkflow(null), false);
+    assert.equal(await wakeShoutoutWorkflow("/.well-known/workflow/v1/webhook/nothing", "http://127.0.0.1:9"), false);
   });
 });
