@@ -2,6 +2,7 @@
 //
 //   DATABASE_URL=postgres://... node db/setup.ts          # create + seed if empty
 //   DATABASE_URL=postgres://... node db/setup.ts --reset  # wipe and reseed (demo reset)
+//   node db/setup.ts --if-configured                      # build step: skips when no database is set
 //
 // Everyone here is invented. The shape of the data (achievements doc, skills
 // matrix, development plans, retention notes, warm bench, succession, deal
@@ -14,6 +15,12 @@ import postgres from "postgres";
 import { fiscalQuarter } from "../agent/lib/fiscal.ts"; // .ts: db:setup runs under plain node
 
 const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
+// Every Vercel build runs this, so a deploy brings the database up to date on its own.
+// A build with no real database (a local build, or a pulled env file with hidden values) just skips it.
+if (process.argv.includes("--if-configured") && !url?.startsWith("postgres")) {
+  console.log("No database configured; skipping db setup.");
+  process.exit(0);
+}
 if (!url) throw new Error("Set DATABASE_URL (or POSTGRES_URL) first.");
 
 const sql = postgres(url, { ssl: url.includes("localhost") ? false : "require", max: 1, onnotice: () => {} });

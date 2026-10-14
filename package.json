@@ -7,7 +7,7 @@
     "#evals/*": "./evals/*"
   },
   "scripts": {
-    "build": "next build",
+    "build": "node db/setup.ts --if-configured && next build",
     "deploy": "eve deploy",
     "dev": "next dev",
     "eval": "eve eval",
