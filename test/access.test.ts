@@ -39,7 +39,7 @@ import { postDigestToSlack } from "../agent/lib/slack";
 import { slackAuthFor } from "../agent/lib/slack-auth";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
 
-const manager: Actor = { kind: "user", personId: "jordan-hayes", name: "Jordan Hayes", role: "manager" };
+const manager: Actor = { kind: "user", personId: "jordan-hayes", name: "Nils Thomsen", role: "manager" };
 const priya: Actor = { kind: "user", personId: "priya-nair", name: "Priya Nair", role: "ic" };
 const app: Actor = { kind: "app" };
 
@@ -122,7 +122,7 @@ describe("writes", () => {
 describe("eve caller mapping and approval policies", () => {
   const session = (auth: object | null) => ({ session: { auth: { current: auth } } }) as never;
   const icAuth = { authenticator: "sa-team-hub", principalId: "priya-nair", principalType: "user", attributes: { role: "ic", name: "Priya Nair" } };
-  const mgrAuth = { ...icAuth, principalId: "jordan-hayes", attributes: { role: "manager", name: "Jordan Hayes" } };
+  const mgrAuth = { ...icAuth, principalId: "jordan-hayes", attributes: { role: "manager", name: "Nils Thomsen" } };
 
   test("unknown callers are refused", () => {
     assert.throws(() => actorFromAuth(null), AccessDenied);
@@ -206,7 +206,7 @@ describe("career goals", () => {
   test("a manager sees every SA and can change anyone's goal", async () => {
     assert.equal((await listCareerGoals(manager)).length, 10);
     const row = await setCareerGoal(manager, { personId: "tom-becker", goal: "Manager", note: "Asked about leading the Canberra pod." });
-    assert.equal(row.updated_by_name, "Jordan Hayes");
+    assert.equal(row.updated_by_name, "Nils Thomsen");
     await setCareerGoal(manager, { personId: "tom-becker", goal: "Senior SA", note: "" });
   });
 
@@ -227,7 +227,7 @@ describe("primary model setting", () => {
 
   test("the chosen model is what new sessions and workflows read", async () => {
     const saved = await setPrimaryModel(manager, "anthropic/claude-opus-5.5");
-    assert.equal(saved.updated_by_name, "Jordan Hayes");
+    assert.equal(saved.updated_by_name, "Nils Thomsen");
     assert.equal(await primaryModel(), "anthropic/claude-opus-5.5");
     await setPrimaryModel(manager, DEFAULT_MODEL);
     assert.equal(await primaryModel(), DEFAULT_MODEL);

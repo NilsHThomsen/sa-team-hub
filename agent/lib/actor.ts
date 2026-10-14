@@ -55,7 +55,7 @@ export function actorFromAuth(auth: AuthLike | null | undefined): Actor {
   // `eve dev` on a laptop: act as the demo manager so the terminal UI is usable.
   // localDev() only ever authenticates on a local dev server, never in production.
   if ((auth.principalType === "local-dev" || auth.authenticator === "local-dev") && process.env.EVE_DEV === "1") {
-    return { kind: "user", personId: "jordan-hayes", name: "Jordan Hayes (local dev)", role: "manager" };
+    return { kind: "user", personId: "jordan-hayes", name: "Nils Thomsen (local dev)", role: "manager" };
   }
 
   throw new AccessDenied("This caller is not a recognised SA Team Hub user.");

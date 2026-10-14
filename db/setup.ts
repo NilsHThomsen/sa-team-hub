@@ -27,7 +27,7 @@ const day = (offset: number) => {
 const MANAGER = "jordan-hayes";
 
 const people = [
-  { id: MANAGER, name: "Jordan Hayes", title: "SA Manager, ANZ", level: "MGR", role: "manager", segment: "All", location: "Sydney", start: "2023-05-01" },
+  { id: MANAGER, name: "Nils Thomsen", title: "SA Manager, ANZ", level: "MGR", role: "manager", segment: "All", location: "Sydney", start: "2023-05-01" },
   { id: "priya-nair", name: "Priya Nair", title: "Senior Solutions Architect", level: "SSA", role: "ic", segment: "Enterprise (FSI)", location: "Sydney", start: "2024-01-15" },
   { id: "tom-becker", name: "Tom Becker", title: "Solutions Architect", level: "SA2", role: "ic", segment: "Public Sector", location: "Canberra", start: "2024-08-01" },
   { id: "aiko-tanaka", name: "Aiko Tanaka", title: "Principal Solutions Architect", level: "PSA", role: "ic", segment: "Strategic", location: "Sydney", start: "2022-03-01" },
@@ -127,7 +127,7 @@ const devPlans = [
   ["hannah-kim", "Ramp to independent SA", "SA2", "Run a full POV with Priya as backup", 40, "on_track"],
   ["jack-wilson", "Lead the Telco vertical play", "PSA", "Draft the telco industry pitch and demo", 14, "on_track"],
   ["mei-chen", "Senior SA readiness", "SSA", "Complete Champion Building and write a PSD", 25, "on_track"],
-  ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Jordan's leave and run two team meetings", 60, "on_track"],
+  ["daniel-okafor", "Prepare for people management", "MGR", "Act as manager during Nils's leave and run two team meetings", 60, "on_track"],
 ] as const;
 
 // [person, career goal, note]; goals must be one of CAREER_GOALS in agent/lib/career-goals.ts.
@@ -198,6 +198,13 @@ async function renameEsatToPsd() {
   await sql`update dev_plans set next_step = replace(next_step, 'run an ESAT', 'write a PSD') where next_step like '%ESAT%'`;
 }
 
+// The manager is the one real name in the demo (the person presenting it). The id
+// stays "jordan-hayes" so links, sign-ins and history keep working.
+async function renameManager() {
+  await sql`update people set name = 'Nils Thomsen' where id = ${MANAGER} and name = 'Jordan Hayes'`;
+  await sql`update dev_plans set next_step = replace(next_step, 'Jordan''s leave', 'Nils''s leave') where next_step like '%Jordan''s leave%'`;
+}
+
 async function seedCareerGoals() {
   for (const [personId, goal, note] of careerGoals) {
     await sql`insert into career_goals ${sql({ person_id: personId, goal, note, updated_by: personId })}`;
@@ -219,6 +226,7 @@ async function main() {
         console.log("Added sample career goals.");
       }
       await renameEsatToPsd();
+      await renameManager();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }

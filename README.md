@@ -2,7 +2,7 @@
 
 A live dashboard and agent for running a Solutions Architect team: achievements, skills and enablement, development plans, deal coverage, and manager-only talent data (retention, succession, warm bench, promotion cases). It turns the parts of an SA leader's business plan that usually live in spreadsheets into something the team updates by talking to an agent.
 
-Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation, **AI Gateway** for model routing and spend tracking, and **Workflows** for the durable promotion-case flow. All people and data are fictional.
+Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation, **AI Gateway** for model routing and spend tracking, and **Workflows** for the durable promotion-case flow. Apart from the manager (the author), all people and data are fictional.
 
 ## What it does
 
@@ -68,7 +68,7 @@ npm run dev                    # dashboard on http://localhost:3000
 npm test                       # access-rule tests against the seeded database
 ```
 
-Sign in as **Jordan Hayes** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
+Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
 
 ## Deploy to Vercel
 

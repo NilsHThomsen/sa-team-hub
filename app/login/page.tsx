@@ -13,7 +13,7 @@ export default async function LoginPage({
       <form action={signIn} className="w-full max-w-sm space-y-5 rounded-xl border bg-card p-6 shadow-sm">
         <div className="space-y-1">
           <h1 className="font-semibold text-2xl tracking-tight">SA Team Hub</h1>
-          <p className="text-muted-foreground text-sm">Demo sign-in. Every name in this app is fictional.</p>
+          <p className="text-muted-foreground text-sm">Demo sign-in. Apart from the manager, every name in this app is fictional.</p>
         </div>
 
         <label className="block space-y-1.5 text-sm">
@@ -43,7 +43,7 @@ export default async function LoginPage({
         </button>
 
         <p className="text-muted-foreground text-xs">
-          Try Jordan Hayes to see the manager view, then Priya Nair to see what an IC can and cannot see.
+          Try Nils Thomsen to see the manager view, then Priya Nair to see what an IC can and cannot see.
         </p>
       </form>
     </main>
