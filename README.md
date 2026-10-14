@@ -4,10 +4,6 @@ A live dashboard and agent for running a Solutions Architect team: achievements,
 
 Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation, **AI Gateway** for model routing and spend tracking, and **Workflows** for the durable promotion-case flow. Apart from the manager (the author), all people and data are fictional.
 
-## Try it
-
-Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
-
 ## What it does
 
 | Area | Dashboard | Agent |
@@ -22,6 +18,10 @@ Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with th
 | Settings (managers only) | Choose the primary model from a short list of AI Gateway models. New chats, the digest and promotion cases pick it up; open chats keep theirs | Read once per session by a `defineDynamic` model in `agent/agent.ts` |
 | Slack | DM the bot or @mention it: "log a win…", "update Aurora…". Approvals become buttons. Only people linked on Settings get in; shared channels get SA-level access only | `agent/channels/slack.ts` (eve Slack channel via Vercel Connect), `save_weekly_digest` also posts the digest to `SLACK_DIGEST_CHANNEL` (re-saving edits the same post) |
 | Weekly digest | Shown on the home page | `friday-digest` schedule, Fridays 06:00 UTC |
+
+## Try it
+
+Sign in as **Nils Thomsen** (manager) or any IC, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Try asking, as an IC, "What is Tom Becker's retention risk?" to see the refusal.
 
 ## Architecture
 
