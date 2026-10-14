@@ -48,7 +48,9 @@ const people = [
   { id: "daniel-okafor", name: "Daniel Okafor", title: "Senior Solutions Architect", level: "SSA", role: "ic", segment: "Strategic", location: "Brisbane", start: "2022-10-03" },
 ];
 
-const productSkills = ["Next.js & Rendering", "Caching & CDN", "AI SDK & Agents", "Security & Compliance", "Migrations", "Observability"];
+// Vercel product areas an SA demos and proves: Next.js, the CDN, Fluid compute, the AI Cloud
+// (AI SDK, AI Gateway, Sandbox, Workflows), the Firewall and Observability.
+const productSkills = ["Next.js & Rendering", "Caching & CDN", "AI SDK & AI Gateway", "Firewall & Security", "Fluid Compute & Functions", "Observability"];
 // Levels per person in productSkills order: 0 None, 1 Elevator, 2 Present, 3 Demo, 4 Prove (see agent/lib/skill-levels.ts).
 const levels: Record<string, number[]> = {
   "priya-nair": [4, 3, 3, 4, 3, 3],
@@ -95,9 +97,9 @@ const enablement: Record<string, Status[]> = {
 };
 
 const skillNeeds = [
-  { category: "product", name: "AI SDK & Agents", min_level: 3, min_people: 5, reason: "Agent and AI Cloud deals make up a growing share of next quarter's APJ pipeline." },
+  { category: "product", name: "AI SDK & AI Gateway", min_level: 3, min_people: 5, reason: "Agent and AI Cloud deals make up a growing share of next quarter's APJ pipeline." },
   { category: "product", name: "Caching & CDN", min_level: 3, min_people: 5, reason: "Most migration POCs are judged on Core Web Vitals and cache hit ratio." },
-  { category: "product", name: "Security & Compliance", min_level: 3, min_people: 4, reason: "FSI and Public Sector security reviews need a deep SA in the room." },
+  { category: "product", name: "Firewall & Security", min_level: 3, min_people: 4, reason: "FSI and Public Sector security reviews need a deep SA in the room." },
   { category: "certification", name: "AWS Solutions Architect Professional", min_level: null, min_people: 2, reason: "Business plan target: at least 2 people certified per hyperscaler." },
   { category: "certification", name: "Azure Solutions Architect Expert", min_level: null, min_people: 2, reason: "Business plan target: at least 2 people certified per hyperscaler." },
   { category: "certification", name: "Google Cloud Professional Architect", min_level: null, min_people: 2, reason: "Business plan target: at least 2 people certified per hyperscaler." },
@@ -238,6 +240,19 @@ async function renameEsatToPsd() {
   await sql`update dev_plans set next_step = replace(next_step, 'run an ESAT', 'write a PSD') where next_step like '%ESAT%'`;
 }
 
+// Product skills renamed to Vercel product areas. Already-seeded databases get the same rename.
+const SKILL_RENAMES = [
+  ["AI SDK & Agents", "AI SDK & AI Gateway"],
+  ["Security & Compliance", "Firewall & Security"],
+  ["Migrations", "Fluid Compute & Functions"],
+] as const;
+async function renameProductSkills() {
+  for (const [from, to] of SKILL_RENAMES) {
+    await sql`update skills set name = ${to} where category = 'product' and name = ${from}`;
+    await sql`update skill_needs set name = ${to} where category = 'product' and name = ${from}`;
+  }
+}
+
 // The manager is the one real name in the demo (the person presenting it). The id
 // stays "jordan-hayes" so links, sign-ins and history keep working.
 async function renameManager() {
@@ -305,6 +320,7 @@ async function main() {
       }
       await renameEsatToPsd();
       await renameManager();
+      await renameProductSkills();
       await seedNextFocus();
       await moveDealsToFiscalQuarters();
       await seedDealScorecards();

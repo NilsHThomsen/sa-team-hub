@@ -14,7 +14,7 @@ export default defineTool({
   inputSchema: z.object({
     person: z.string().min(1).describe("Person id or name. The caller's own id for 'I' or 'me'."),
     category: z.enum(SKILL_CATEGORIES),
-    name: z.string().min(2).max(80).describe("e.g. 'AI SDK & Agents', 'AWS Solutions Architect Professional', 'Champion Building'"),
+    name: z.string().min(2).max(80).describe("e.g. 'AI SDK & AI Gateway', 'AWS Solutions Architect Professional', 'Champion Building'"),
     level: z.number().int().min(0).max(4).optional().describe("Product skills only"),
     status: z.enum(SKILL_STATUSES).optional().describe("Certifications and soft skills only"),
     dueOn: z.string().date().nullable().optional().describe("YYYY-MM-DD; null clears it"),
