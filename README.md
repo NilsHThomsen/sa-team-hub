@@ -6,16 +6,16 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 
 ## What it does
 
-| Area | Dashboard | Ask the agent to… | Tools |
-| --- | --- | --- | --- |
-| Home | Your action items, recent wins and the weekly digest | "What should I do today?" | `get_my_action_items`, `get_team_directory` |
-| Achievements | Team wins (managers) or your own (SAs) | Log, fix or remove a win; send a teammate a shout-out, which they accept before it's added to their wins | `log_achievement`, `edit_achievement`, `list_recent_achievements`, `send_shoutout`, `respond_to_shoutout` |
-| Skills Matrix | Product skills, certifications and soft skills per person, and gaps against next quarter's needs | Find gaps, update a skill, set next quarter's needs (managers) | `find_skill_gaps`, `get_person_profile`, `update_skill`, `update_skill_need` |
-| Development Plans | Plans grouped by career goal, with next steps and overdue flags | Update a plan or career goal | `update_dev_plan`, `update_career_goal` |
-| Deal Coverage | Top 5 deals this quarter as a scorecard, SA coverage, stale next steps and overloaded SAs | Update next steps and the scorecard; create or reassign deals (managers) | `review_deal_coverage`, `update_deal_next_step`, `update_deal_scorecard`, `manage_deal` |
-| Talent (managers only) | 9-box, retention risk, promotion cases, succession and warm bench | Update any of these; draft a promotion case and approve or decline it | `get_talent_overview`, `update_talent_rating`, `update_retention_risk`, `draft_promotion_case`, `decide_promotion_case`, `update_succession`, `update_warm_bench`, `update_team_member` |
-| Settings (managers only) | Choose the AI model | | |
-| Slack | DM or @mention the bot; the weekly digest is posted to a channel | Anything above | `save_weekly_digest` (also posts the digest) |
+| Area | Dashboard | Ask the agent to… | Agent | Tools |
+| --- | --- | --- | --- | --- |
+| Home | Your action items, recent wins and the weekly digest | "What should I do today?" | Main | `get_my_action_items`, `get_team_directory` |
+| Achievements | Team wins (managers) or your own (SAs) | Log, fix or remove a win; send a teammate a shout-out, which they accept before it's added to their wins | Main | `log_achievement`, `edit_achievement`, `list_recent_achievements`, `send_shoutout`, `respond_to_shoutout` |
+| Skills Matrix | Product skills, certifications and soft skills per person, and gaps against next quarter's needs | Find gaps, update a skill, set next quarter's needs (managers) | `skills_and_plans` (main can read gaps) | `find_skill_gaps`, `get_person_profile`, `update_skill`, `update_skill_need` |
+| Development Plans | Plans grouped by career goal, with next steps and overdue flags | Update a plan or career goal | `skills_and_plans` | `update_dev_plan`, `update_career_goal` |
+| Deal Coverage | Top 5 deals this quarter as a scorecard, SA coverage, stale next steps and overloaded SAs | Update next steps and the scorecard; create or reassign deals (managers) | `deals` (main can read coverage) | `review_deal_coverage`, `update_deal_next_step`, `update_deal_scorecard`, `manage_deal` |
+| Talent (managers only) | 9-box, retention risk, promotion cases, succession and warm bench | Update any of these; draft a promotion case and approve or decline it | `talent` | `get_talent_overview`, `update_talent_rating`, `update_retention_risk`, `draft_promotion_case`, `decide_promotion_case`, `update_succession`, `update_warm_bench`, `update_team_member` |
+| Settings (managers only) | Choose the AI model | | | |
+| Slack | DM or @mention the bot; the weekly digest is posted to a channel | Anything above | Main, handing off to specialists | `save_weekly_digest` (also posts the digest) |
 
 ## Try it
 
