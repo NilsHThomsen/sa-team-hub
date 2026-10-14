@@ -2,7 +2,7 @@
 
 A dashboard and agent for running a Solutions Architect team. It takes the parts of an SA leader's business plan that usually live in spreadsheets (achievements, skills, development plans, deal coverage and talent planning) and lets the team keep them up to date by talking to an agent.
 
-Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and spend tracking) and **Workflows** (promotion cases). Everyone except the manager (me) is fictional.
+Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and spend tracking), **Workflows** (promotion cases) and **Neon** Postgres. Everyone except the manager (me) is fictional.
 
 ## What it does
 
@@ -10,7 +10,7 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 | --- | --- | --- | --- | --- |
 | Home | Your action items, recent wins and the weekly digest | "What should I do today?" | Main | `get_my_action_items`, `get_team_directory` |
 | Achievements | Team wins (managers) or your own (SAs) | Log, fix or remove a win; send a teammate a shout-out, which they accept before it's added to their wins | Main | `log_achievement`, `edit_achievement`, `list_recent_achievements`, `send_shoutout`, `respond_to_shoutout` |
-| Skills Matrix | Product skills, certifications and soft skills per person, and gaps against next quarter's needs | Find gaps, update a skill, set next quarter's needs (managers) | `skills_and_plans` (main can read gaps) | `find_skill_gaps`, `get_person_profile`, `update_skill`, `update_skill_need` |
+| Skills Matrix | Product skills, hyperscaler certifications and soft skills per person, and gaps against next quarter's needs | Find gaps, update a skill, set next quarter's needs (managers) | `skills_and_plans` (main can read gaps) | `find_skill_gaps`, `get_person_profile`, `update_skill`, `update_skill_need` |
 | Development Plans | Plans grouped by career goal, with next steps and overdue flags | Update a plan or career goal | `skills_and_plans` | `update_dev_plan`, `update_career_goal` |
 | Deal Coverage | Top 5 deals this quarter as a scorecard, SA coverage, stale next steps and overloaded SAs | Update next steps and the scorecard; create or reassign deals (managers) | `deals` (main can read coverage) | `review_deal_coverage`, `update_deal_next_step`, `update_deal_scorecard`, `manage_deal` |
 | Talent (managers only) | 9-box, retention risk, promotion cases, succession and warm bench | Update any of these; draft a promotion case and approve or decline it | `talent` | `get_talent_overview`, `update_talent_rating`, `update_retention_risk`, `draft_promotion_case`, `decide_promotion_case`, `update_succession`, `update_warm_bench`, `update_team_member` |
@@ -22,6 +22,8 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 Sign in as **Nils Thomsen** (manager) or any SA, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Ask, as an SA, "What is Tom Becker's retention risk?" to see the agent refuse.
 
 ## Architecture
+
+A one-page diagram is in [sa-team-hub-architecture.pdf](sa-team-hub-architecture.pdf).
 
 ```
 Browser ──► Next.js 16
