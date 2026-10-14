@@ -8,6 +8,7 @@ Built on Vercel: **eve** for the agent, the **AI SDK** for structured generation
 
 | Area | Dashboard | Agent |
 | --- | --- | --- |
+| Home | Personal action items (approvals, deals to update, forecast conversations, overdue plans, retention follow-ups, goals and certifications due), recent wins, weekly digest | `get_my_action_items` ("what should I do today?") |
 | Achievements Doc | Team wins (managers) or your own (ICs) | `log_achievement`: "Log a win: I ran the Next.js 16 migration workshop for Acme" |
 | Skills Matrix | Product depth, certifications, enablement, gaps against next quarter's needs | `find_skill_gaps`, `get_person_profile` |
 | Development Plans | Grouped under each person's career goal (Principal SA, Manager, Product Manager...), with goals, next steps and overdue flags. SAs change their own goal from the page; managers can change anyone's | `update_career_goal` (asks to confirm), read via profile |

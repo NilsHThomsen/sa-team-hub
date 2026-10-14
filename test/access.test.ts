@@ -26,6 +26,7 @@ import {
 } from "../agent/lib/data";
 import { db } from "../agent/lib/db";
 import { DEFAULT_MODEL, primaryModel } from "../agent/lib/models";
+import { actionItems } from "../agent/lib/actions";
 import { postDigestToSlack } from "../agent/lib/slack";
 import { slackAuthFor } from "../agent/lib/slack-auth";
 import { managerConfirms, managerOnly, signedInConfirms } from "../agent/lib/policies";
@@ -265,5 +266,25 @@ describe("digest to Slack", () => {
     const digest = await saveDigest(manager, "Wins this week: test digest body long enough to save.");
     assert.equal(digest.slack_ts, null);
     assert.equal(await postDigestToSlack(digest, "body"), "not configured");
+  });
+});
+
+describe("action items", () => {
+  test("an SA only gets items about themselves", async () => {
+    const items = await actionItems(priya);
+    assert.ok(items.length > 0);
+    assert.ok(items.every((i) => i.personId === "priya-nair"));
+    assert.ok(!items.some((i) => i.kind === "retention" || i.kind === "approval"));
+  });
+
+  test("a manager gets team items, including overdue plans and forecast mismatches", async () => {
+    const items = await actionItems(manager);
+    assert.ok(items.some((i) => i.kind === "dev_plan" && i.title.includes("Tom Becker")));
+    assert.ok(items.some((i) => i.title.includes("Kiwi Freight")));
+    assert.ok(items[0].urgent); // urgent first
+  });
+
+  test("the scheduled app principal gets none", async () => {
+    assert.deepEqual(await actionItems(app), []);
   });
 });

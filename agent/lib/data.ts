@@ -360,7 +360,7 @@ export interface DealRow {
   flags: string[];
 }
 
-const STALE_DAYS = 14;
+export const STALE_DAYS = 14;
 const SA_DEAL_LIMIT = 3; // active stage 2-4 deals per SA before we call it overloaded
 
 /** Applies the business plan's coverage rules to every open deal. */

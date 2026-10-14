@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { type ActionItem, actionItems } from "@/agent/lib/actions";
 import { isManager } from "@/agent/lib/actor";
 import { dealCoverage, latestDigest, listAchievements, listDevPlans, listPeople, listRetentionRisks, summarizeDeals } from "@/agent/lib/data";
 import { byPeople, PEOPLE_PARAM, type SearchParams, selectedPeople } from "@/lib/people-filter";
@@ -6,12 +7,21 @@ import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "./_person-filter";
 import { PageHeader, Pill, Section, Stat } from "./_ui";
 
+const KIND_LABEL: Record<ActionItem["kind"], string> = {
+  approval: "Approval",
+  deal: "Deal",
+  dev_plan: "Dev plan",
+  retention: "Retention",
+  career_goal: "Career goal",
+  enablement: "Enablement",
+};
+
 export default async function HomePage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
   const manager = isManager(actor);
 
   // Independent queries run in parallel.
-  const [coverageAll, plansAll, achievementsAll, digest, risksAll, people, filter] = await Promise.all([
+  const [coverageAll, plansAll, achievementsAll, digest, risksAll, people, filter, actionsAll] = await Promise.all([
     dealCoverage(actor),
     listDevPlans(actor),
     listAchievements(actor, { days: 90 }),
@@ -19,6 +29,7 @@ export default async function HomePage({ searchParams }: { readonly searchParams
     manager ? listRetentionRisks(actor) : Promise.resolve([]),
     listPeople(),
     selectedPeople(searchParams),
+    actionItems(actor),
   ]);
   // Managers can narrow the dashboard to one or more people; ICs already see only their own.
   const selected = manager ? filter : null;
@@ -26,6 +37,8 @@ export default async function HomePage({ searchParams }: { readonly searchParams
   const achievements = byPeople(achievementsAll, selected, (a) => a.person_id);
   const risks = byPeople(risksAll, selected, (r) => r.person_id);
   const filteredDeals = byPeople(coverageAll.deals, selected, (d) => d.sa_id);
+  // Team-level items (such as a deal with no SA) stay visible under any filter.
+  const actions = selected ? actionsAll.filter((a) => !a.personId || selected.has(a.personId)) : actionsAll;
   const coverage = { deals: filteredDeals, summary: selected ? summarizeDeals(filteredDeals) : coverageAll.summary };
 
   // Each number links to the tab behind it, carrying the person filter along.
@@ -61,19 +74,24 @@ export default async function HomePage({ searchParams }: { readonly searchParams
       )}
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <Section note="Written by the Friday digest schedule" title="Weekly digest">
-          <div className="whitespace-pre-wrap rounded-xl border bg-card p-4 text-sm">
-            {digest ? (
-              <>
-                <div className="mb-2 text-muted-foreground text-xs">Week of {digest.week_of}</div>
-                {digest.body}
-              </>
-            ) : (
-              <span className="text-muted-foreground">
-                No digest yet. It runs every Friday, or ask the agent to &quot;write this week&apos;s digest&quot;.
-              </span>
-            )}
-          </div>
+        <Section note={actions.length ? `${actions.length} open` : undefined} title="Action items">
+          <ul className="divide-y rounded-xl border bg-card text-sm">
+            {actions.slice(0, 8).map((a, i) => (
+              <li className="flex gap-3 p-3" key={`${a.kind}-${a.title}-${i}`}>
+                <span className={a.urgent ? "mt-1.5 size-2 shrink-0 rounded-full bg-amber-500" : "mt-1.5 size-2 shrink-0 rounded-full bg-muted-foreground/30"} />
+                <div className="min-w-0">
+                  <Link className="font-medium underline-offset-2 hover:underline" href={to(a.href)}>
+                    {a.title}
+                  </Link>
+                  <div className="text-muted-foreground text-xs">
+                    {KIND_LABEL[a.kind]} · {a.detail}
+                  </div>
+                </div>
+              </li>
+            ))}
+            {actions.length === 0 ? <li className="p-3 text-muted-foreground">Nothing needs you right now.</li> : null}
+            {actions.length > 8 ? <li className="p-3 text-muted-foreground text-xs">and {actions.length - 8} more. Ask the agent &quot;what are my action items?&quot;</li> : null}
+          </ul>
         </Section>
 
         <Section title="Recent wins">
@@ -93,6 +111,21 @@ export default async function HomePage({ searchParams }: { readonly searchParams
           </Link>
         </Section>
       </div>
+
+      <Section note="Written by the Friday digest schedule" title="Weekly digest">
+        <div className="whitespace-pre-wrap rounded-xl border bg-card p-4 text-sm">
+          {digest ? (
+            <>
+              <div className="mb-2 text-muted-foreground text-xs">Week of {digest.week_of}</div>
+              {digest.body}
+            </>
+          ) : (
+            <span className="text-muted-foreground">
+              No digest yet. It runs every Friday, or ask the agent to &quot;write this week&apos;s digest&quot;.
+            </span>
+          )}
+        </div>
+      </Section>
     </>
   );
 }
