@@ -16,9 +16,9 @@ const ACTION = [
 
 /** Box colour, indexed the same way. */
 const COLOUR = [
-  ["from-rose-500 to-red-600 text-white", "from-orange-400 to-orange-600 text-white", "from-amber-300 to-yellow-400 text-amber-950"],
-  ["from-orange-400 to-orange-600 text-white", "from-amber-300 to-yellow-400 text-amber-950", "from-lime-400 to-green-500 text-green-950"],
-  ["from-amber-300 to-yellow-400 text-amber-950", "from-lime-300 to-lime-500 text-lime-950", "from-lime-400 to-green-500 text-green-950"],
+  ["from-rose-100 to-rose-200 text-rose-950", "from-orange-100 to-orange-200 text-orange-950", "from-amber-50 to-amber-100 text-amber-950"],
+  ["from-orange-100 to-orange-200 text-orange-950", "from-amber-50 to-amber-100 text-amber-950", "from-lime-100 to-green-200 text-green-950"],
+  ["from-amber-50 to-amber-100 text-amber-950", "from-lime-50 to-lime-100 text-lime-950", "from-lime-100 to-green-200 text-green-950"],
 ];
 
 function Box({ potential, performance, people }: { readonly potential: number; readonly performance: number; readonly people: readonly TalentRating[] }) {
@@ -32,7 +32,7 @@ function Box({ potential, performance, people }: { readonly potential: number; r
       <div className="flex flex-wrap gap-1.5 pt-3">
         {people.map((r) => (
           <span
-            className="rounded-full bg-white/85 px-2 py-0.5 font-medium text-slate-800 text-xs shadow-sm"
+            className="rounded-full bg-white px-2 py-0.5 font-medium text-slate-800 text-xs shadow-sm"
             key={r.person_id}
             title={r.note ? `${r.note} (updated ${r.updated_at})` : undefined}
           >
@@ -77,7 +77,7 @@ export function NineBox({ ratings, unrated }: { readonly ratings: readonly Talen
               />
             )),
           )}
-          <div className="pointer-events-none absolute top-0 right-0 bottom-[calc(33.333%+0.33rem)] left-[calc(33.333%+0.33rem)] rounded-xl border-2 border-white/90 border-dashed">
+          <div className="pointer-events-none absolute top-0 right-0 bottom-[calc(33.333%+0.33rem)] left-[calc(33.333%+0.33rem)] rounded-xl border-2 border-green-600/40 border-dashed">
             <span className="-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 whitespace-nowrap rounded-md bg-white/90 px-3 py-1.5 font-semibold text-slate-700 text-xs shadow-md backdrop-blur">
               Prepare for future role
             </span>
