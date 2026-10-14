@@ -97,7 +97,7 @@ export default async function HomePage({ searchParams }: { readonly searchParams
           </ul>
         </Section>
 
-        <Section title="Recent wins">
+        <Section title="Recent Achievements">
           <ul className="divide-y rounded-xl border bg-card text-sm">
             {achievements.slice(0, 6).map((a) => (
               <li className="p-3" key={a.id}>
@@ -110,7 +110,7 @@ export default async function HomePage({ searchParams }: { readonly searchParams
             {achievements.length === 0 ? <li className="p-3 text-muted-foreground">Nothing logged in the last 90 days.</li> : null}
           </ul>
           <Link className="text-sm underline-offset-2 hover:underline" href="/s">
-            Log a win by telling the agent →
+            Log an Achievement by telling the agent →
           </Link>
         </Section>
       </div>
