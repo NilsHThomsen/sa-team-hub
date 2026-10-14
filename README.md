@@ -17,8 +17,6 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 | Settings (managers only) | Choose the AI model | |
 | Slack | DM or @mention the bot; the weekly digest is posted to a channel | Anything above |
 
-Quarters follow Vercel's financial year (February to January, e.g. "FY27 Q3").
-
 ## Try it
 
 Sign in as **Nils Thomsen** (manager) or any SA, such as **Priya Nair**, with the demo password (default `team-hub-demo`). Ask, as an SA, "What is Tom Becker's retention risk?" to see the agent refuse.
