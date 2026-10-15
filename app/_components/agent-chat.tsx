@@ -6,6 +6,7 @@ import {
   AlertCircleIcon,
   ArrowLeftIcon,
   BrainIcon,
+  LightbulbIcon,
   Maximize2Icon,
   PlusIcon,
   SquareIcon,
@@ -207,15 +208,20 @@ export function AgentChat({
     </>
   );
 
+  // In the panel, the suggestions can be reopened mid-conversation; picking one sends it and closes the list.
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const exampleButtons =
     examples.length === 0 ? null : (
       <div className="flex w-full flex-col gap-2">
         {examples.map((example) => (
           <button
             className="rounded-lg border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
-            disabled={isResuming}
+            disabled={isResuming || isBusy}
             key={example}
-            onClick={() => void agent.send(example)}
+            onClick={() => {
+              setShowSuggestions(false);
+              void agent.send(example);
+            }}
             type="button"
           >
             {example}
@@ -267,7 +273,23 @@ export function AgentChat({
             <ConversationScrollButton />
           </Conversation>
         )}
-        <div className="shrink-0 border-t p-3">{composer}</div>
+        <div className="shrink-0 space-y-2 border-t p-3">
+          {!isEmpty && examples.length > 0 ? (
+            <>
+              {showSuggestions ? <div className="max-h-56 overflow-y-auto">{exampleButtons}</div> : null}
+              <button
+                aria-expanded={showSuggestions}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs hover:bg-muted hover:text-foreground"
+                onClick={() => setShowSuggestions((value) => !value)}
+                type="button"
+              >
+                <LightbulbIcon className="size-3.5" />
+                {showSuggestions ? "Hide suggestions" : "Suggestions"}
+              </button>
+            </>
+          ) : null}
+          {composer}
+        </div>
       </div>
     );
   }
