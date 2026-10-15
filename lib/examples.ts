@@ -21,6 +21,5 @@ export function examplePrompts(role: Role): string[] {
         "What skills should I focus on next quarter?",
         "How is my development plan tracking?",
         "Change my career goal to Field CTO: I want to stay technical but work with execs.",
-        "What is Tom Becker's retention risk?",
       ];
 }
