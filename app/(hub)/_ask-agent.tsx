@@ -1,14 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, use, useCallback, useEffect, useState } from "react";
 import { AgentChat } from "@/app/_components/agent-chat";
 import { cn } from "@/lib/utils";
 import { afterAgentTurn } from "./actions";
 
 // "Ask the agent" opens the chat in a panel over the dashboard. The panel stays mounted while
 // closed and across page changes, so a conversation survives moving between tabs.
-export function AskAgent({ examples }: { readonly examples: readonly string[] }) {
+//
+// The button is the same for everyone, so it is part of the prerendered shell served from the CDN.
+// The suggested prompts are chosen by role, so they arrive as a promise that the server resolves
+// per request and streams in; manager prompts never sit in the shared shell.
+export function AskAgent({ examples }: { readonly examples: Promise<readonly string[]> }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [opened, setOpened] = useState(false);
@@ -60,14 +64,21 @@ export function AskAgent({ examples }: { readonly examples: readonly string[] })
         inert={!open}
       >
         {opened ? (
-          <AgentChat
-            examples={examples}
-            key={chatKey}
-            panel={{ onClose: close, onNewChat: newChat, onTurnSettled: refresh }}
-            sessionless
-          />
+          <Suspense fallback={null}>
+            <PanelChat examples={examples} key={chatKey} panel={{ onClose: close, onNewChat: newChat, onTurnSettled: refresh }} />
+          </Suspense>
         ) : null}
       </aside>
     </>
   );
+}
+
+function PanelChat({
+  examples,
+  panel,
+}: {
+  readonly examples: Promise<readonly string[]>;
+  readonly panel: { onClose: () => void; onNewChat: () => void; onTurnSettled: () => Promise<void> };
+}) {
+  return <AgentChat examples={use(examples)} panel={panel} sessionless />;
 }

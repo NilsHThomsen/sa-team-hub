@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { type ReactNode, Suspense } from "react";
 import { examplePrompts } from "@/lib/examples";
-import { requireActor } from "@/lib/viewer";
+import { getViewer, requireActor } from "@/lib/viewer";
 import { signOut } from "../login/actions";
 import { AskAgent } from "./_ask-agent";
 import { NavLinks } from "./_nav";
@@ -9,7 +9,7 @@ import { NavLinks } from "./_nav";
 // Cache Components: the layout itself reads nothing personal, so every hub page
 // gets a prerendered shell (the header frame and a loading skeleton) served from
 // Vercel's CDN, and Partial Prefetching fetches that shell before a click.
-// Everything that reads the sign-in cookie (the role-based nav, the agent panel
+// Everything that reads the sign-in cookie (the role-based nav, the agent's prompts
 // and the page itself) sits inside a Suspense boundary and streams in from the
 // function at request time. A signed-out request still redirects to /login.
 // Each tab's loading.tsx adds its real heading to that shell (see PageLoading).
@@ -25,8 +25,10 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
             <ViewerNav />
           </Suspense>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <Suspense fallback={<div aria-hidden className="h-5 w-40 animate-pulse rounded bg-muted" />}>
-              <ViewerControls />
+            {/* The button is in the shell; its role-based prompts stream in (see _ask-agent.tsx). */}
+            <AskAgent examples={roleExamples()} />
+            <Suspense fallback={<div aria-hidden className="h-5 w-32 animate-pulse rounded bg-muted" />}>
+              <ViewerName />
             </Suspense>
             {/* Same for everyone, so it is part of the prerendered shell. */}
             <form action={signOut}>
@@ -65,20 +67,23 @@ async function ViewerNav() {
   return <NavLinks items={nav} />;
 }
 
-/**
- * The agent panel and the name. The panel stays out of the shared shell on purpose:
- * its suggested prompts are chosen by role, and manager prompts must never reach an SA.
- */
-async function ViewerControls() {
+/** The signed-in person's name and role. */
+async function ViewerName() {
   const { viewer } = await requireActor();
   return (
-    <>
-      <AskAgent examples={examplePrompts(viewer.role)} />
-      <span className="text-muted-foreground">
-        {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
-      </span>
-    </>
+    <span className="text-muted-foreground">
+      {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
+    </span>
   );
+}
+
+/**
+ * The chat panel's suggested prompts, chosen by role. Not awaited by the layout: the promise is
+ * passed to the client and resolved per request, so manager prompts never reach an SA's browser.
+ */
+async function roleExamples(): Promise<readonly string[]> {
+  const viewer = await getViewer();
+  return viewer ? examplePrompts(viewer.role) : [];
 }
 
 /** Shown in the prerendered shell until the page's own data streams in. */
