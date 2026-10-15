@@ -1,3 +1,4 @@
+import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { type ActionItem, actionItems } from "@/agent/lib/actions";
 import { isManager } from "@/agent/lib/actor";
@@ -19,6 +20,20 @@ const KIND_LABEL: Record<ActionItem["kind"], string> = {
   enablement: "Soft skills",
 };
 
+// The weekly digest is the same for every reader, holds no talent data (the
+// schedule's instructions exclude it) and changes once a week, so it's cached
+// instead of read from Postgres on every page view. "remote" keeps one shared
+// copy across all function instances; plain "use cache" is in-memory per
+// instance on serverless. It's written by an agent tool, not a Server Action,
+// so it can't be cleared on save (updateTag is Server Actions only); the
+// "hours" profile means a new digest shows up within about an hour.
+async function cachedDigest() {
+  "use cache: remote";
+  cacheLife("hours");
+  cacheTag("digest");
+  return latestDigest();
+}
+
 export default async function HomePage({ searchParams }: { readonly searchParams: SearchParams }) {
   const { viewer, actor } = await requireActor();
   const manager = isManager(actor);
@@ -28,7 +43,7 @@ export default async function HomePage({ searchParams }: { readonly searchParams
     dealCoverage(actor),
     listDevPlans(actor),
     listAchievements(actor, { days: 90 }),
-    latestDigest(),
+    cachedDigest(),
     manager ? listRetentionRisks(actor) : Promise.resolve([]),
     listPeople(),
     selectedPeople(searchParams),
