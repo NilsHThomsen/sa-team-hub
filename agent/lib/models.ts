@@ -9,6 +9,7 @@ import { db } from "./db";
 //     or is degraded, Gateway retries the next model, with no code change here.
 //   - `tags` attribute spend per feature in Gateway's usage reports, which is how
 //     we answer "what does one promotion case cost?".
+//   - `user` attributes spend to the signed-in person, for the manager's Usage page.
 export const MODEL_OPTIONS = [
   { id: "anthropic/claude-sonnet-5", label: "Claude Sonnet 5", note: "Balanced quality and cost. The default." },
   { id: "anthropic/claude-opus-5.5", label: "Claude Opus 5.5", note: "Most capable, highest cost." },
@@ -36,8 +37,10 @@ export function fallbackFor(primary: ModelId): ModelId {
   return primary.startsWith("anthropic/") ? "openai/gpt-6-luna-fast" : DEFAULT_MODEL;
 }
 
-export function gatewayOptions(feature: string, primary: ModelId) {
-  return { gateway: { models: [fallbackFor(primary)], tags: ["app:sa-team-hub", `feature:${feature}`] } };
+export const APP_TAG = "app:sa-team-hub";
+
+export function gatewayOptions(feature: string, primary: ModelId, user?: string) {
+  return { gateway: { models: [fallbackFor(primary)], tags: [APP_TAG, `feature:${feature}`], ...(user ? { user } : {}) } };
 }
 
 /** The primary model chosen on the Settings page. Never throws: a read failure uses the default. */

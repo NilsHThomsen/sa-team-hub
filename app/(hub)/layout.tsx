@@ -18,6 +18,7 @@ export default async function HubLayout({ children }: { readonly children: React
     ...(viewer.role === "manager"
       ? [
           { href: "/talent", label: "Talent" },
+          { href: "/usage", label: "AI Usage" },
           { href: "/settings", label: "Settings" },
         ]
       : []),

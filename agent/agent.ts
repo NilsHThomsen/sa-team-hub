@@ -1,5 +1,6 @@
 import { defineAgent, defineDynamic } from "eve";
 import { CONTEXT_WINDOW_TOKENS, gatewayOptions, primaryModel } from "./lib/models";
+import { spendUser } from "./lib/specialists";
 
 export default defineAgent({
   // A plain "provider/model" string routes through Vercel AI Gateway. On Vercel
@@ -11,14 +12,15 @@ export default defineAgent({
   // prompt cache). Sessions already running keep the model they started with.
   model: defineDynamic({
     events: {
-      "session.started": async () => {
+      "session.started": async (_event, ctx) => {
         const model = await primaryModel();
         return {
           model,
           modelContextWindowTokens: CONTEXT_WINDOW_TOKENS,
           // Ordered fallback on another provider, and a tag so chat spend is
-          // separable from workflow spend in Gateway usage.
-          modelOptions: { providerOptions: gatewayOptions("chat", model) },
+          // separable from workflow spend in Gateway usage. The user is whoever
+          // started the session, so the manager's Usage page can show spend per person.
+          modelOptions: { providerOptions: gatewayOptions("chat", model, spendUser(ctx)) },
         };
       },
     },

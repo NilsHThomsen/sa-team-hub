@@ -48,13 +48,14 @@ export default defineWorkflowTool({
     const score = await scoreEvidence(level, evidence);
 
     yield { phase: "Drafting the case" };
-    const draft = await draftCase(evidence, score);
+    const createdBy = ctx.session.auth.current?.principalId ?? "unknown";
+    const draft = await draftCase(evidence, score, createdBy);
 
     const caseId = await saveCase({
       personId,
       level,
       draft,
-      createdBy: ctx.session.auth.current?.principalId ?? "unknown",
+      createdBy,
       callId: ctx.callId,
     });
 
@@ -128,14 +129,15 @@ async function scoreEvidence(level: Level, evidence: Evidence) {
   return scoreAgainst(level, evidence);
 }
 
-async function draftCase(evidence: Evidence, score: ReturnType<typeof scoreAgainst>) {
+async function draftCase(evidence: Evidence, score: ReturnType<typeof scoreAgainst>, requestedBy: string) {
   "use step";
   // AI SDK structured output: the model must return an object matching caseSchema,
   // so the dashboard and the approval prompt never parse free text.
   const model = await primaryModel();
   const result = await generateText({
     model,
-    providerOptions: gatewayOptions("promotion-case", model),
+    // Spend goes to the manager who asked for the case.
+    providerOptions: gatewayOptions("promotion-case", model, requestedBy),
     output: Output.object({ schema: caseSchema }),
     instructions:
       "You write promotion cases for a presales (Solutions Architect) team. Use only the evidence provided. " +

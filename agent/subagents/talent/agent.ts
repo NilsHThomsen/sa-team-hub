@@ -11,6 +11,7 @@ export default defineDynamic({
         ? specialist(
             "Talent specialist, managers only. The 9-box, retention risk, promotion cases (drafting and deciding), succession, " +
               "the warm bench, and adding or editing team members.",
+            ctx,
           )
         : null,
   },
