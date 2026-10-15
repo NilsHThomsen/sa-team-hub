@@ -276,7 +276,7 @@ export function AgentChat({
         <div className="shrink-0 space-y-2 border-t p-3">
           {!isEmpty && examples.length > 0 ? (
             <>
-              {showSuggestions ? <div className="max-h-56 overflow-y-auto">{exampleButtons}</div> : null}
+              {showSuggestions ? <div className="max-h-[55dvh] overflow-y-auto">{exampleButtons}</div> : null}
               <button
                 aria-expanded={showSuggestions}
                 className="flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground text-xs hover:bg-muted hover:text-foreground"
