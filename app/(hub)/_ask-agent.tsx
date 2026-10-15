@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { AgentChat } from "@/app/_components/agent-chat";
 import { cn } from "@/lib/utils";
+import { afterAgentTurn } from "./actions";
 
 // "Ask the agent" opens the chat in a panel over the dashboard. The panel stays mounted while
 // closed and across page changes, so a conversation survives moving between tabs.
@@ -15,7 +16,12 @@ export function AskAgent({ examples }: { readonly examples: readonly string[] })
 
   const close = useCallback(() => setOpen(false), []);
   const newChat = useCallback(() => setChatKey((key) => key + 1), []);
-  const refresh = useCallback(() => router.refresh(), [router]);
+  // After each agent turn, clear the cached digest (a Server Action) and re-render the dashboard,
+  // so changes the agent made show up. A failed clear still refreshes.
+  const refresh = useCallback(async () => {
+    await afterAgentTurn().catch(() => undefined);
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
     if (!open) return;
