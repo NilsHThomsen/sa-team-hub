@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { listPeople } from "@/agent/lib/data";
 import { signIn } from "./actions";
 
@@ -11,6 +12,8 @@ export default async function LoginPage({
 }: {
   readonly searchParams: Promise<{ error?: string }>;
 }) {
+  // Wait for the request before touching Postgres, so the build never queries it.
+  await connection();
   const [{ error }, people] = await Promise.all([searchParams, listPeople()]);
 
   return (
