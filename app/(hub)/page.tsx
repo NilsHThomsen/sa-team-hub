@@ -66,11 +66,11 @@ export default async function HomePage({ searchParams }: { readonly searchParams
           <Stat href={to("/deals")} label="Stale next steps" tone={coverage.summary.stale_next_steps > 0 ? "warn" : "good"} value={coverage.summary.stale_next_steps} />
           <Stat href={to("/dev-plans")} label="Overdue dev plans" tone={overdue > 0 ? "warn" : "good"} value={overdue} />
           <Stat href={to("/talent")} label="High retention risk" tone={risks.some((r) => r.risk === "high") ? "bad" : "good"} value={risks.filter((r) => r.risk === "high").length} />
-          <Stat href={to("/achievements")} label="Wins logged (90 days)" value={achievements.length} />
+          <Stat href={to("/achievements")} label="Achievements logged (90 days)" value={achievements.length} />
         </div>
       ) : (
         <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-3">
-          <Stat href={to("/achievements")} label="My wins (90 days)" value={achievements.length} />
+          <Stat href={to("/achievements")} label="My achievements (90 days)" value={achievements.length} />
           <Stat href={to("/dev-plans")} label="Dev plan" value={plans[0] ? <Pill value={plans[0].overdue ? "overdue" : plans[0].status} /> : "None"} />
           <Stat href={to("/deals")} label="My deals needing attention" tone={flagged > 0 ? "warn" : "good"} value={flagged} />
         </div>
