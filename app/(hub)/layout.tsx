@@ -6,12 +6,34 @@ import { signOut } from "../login/actions";
 import { AskAgent } from "./_ask-agent";
 import { NavLinks } from "./_nav";
 
-// Cache Components: every hub page reads the sign-in cookie and shows that person's data, so this route renders at request time.
-// `instant = false` allows that (the documented opt-out); cached pieces such
-// as the weekly digest still opt in with "use cache".
-export const instant = false;
+// Cache Components: the layout itself reads nothing personal, so every hub page
+// gets a prerendered shell (the header frame and a loading skeleton) served from
+// Vercel's CDN, and Partial Prefetching fetches that shell before a click.
+// Everything that reads the sign-in cookie (the role-based nav, the agent panel
+// and the page itself) sits inside a Suspense boundary and streams in from the
+// function at request time. A signed-out request still redirects to /login.
+export default function HubLayout({ children }: { readonly children: ReactNode }) {
+  return (
+    <div className="min-h-dvh bg-background text-foreground">
+      <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+          <Link className="font-semibold tracking-tight" href="/">
+            SA Team Hub
+          </Link>
+          <Suspense fallback={<div aria-hidden className="ml-auto h-5 w-40 animate-pulse rounded bg-muted" />}>
+            <ViewerHeader />
+          </Suspense>
+        </div>
+      </header>
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+      </main>
+    </div>
+  );
+}
 
-export default async function HubLayout({ children }: { readonly children: ReactNode }) {
+/** The part of the header that depends on who is signed in. */
+async function ViewerHeader() {
   const { viewer } = await requireActor();
   const nav = [
     { href: "/", label: "Home" },
@@ -30,29 +52,30 @@ export default async function HubLayout({ children }: { readonly children: React
   ];
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link className="font-semibold tracking-tight" href="/">
-            SA Team Hub
-          </Link>
-          <Suspense>
-            <NavLinks items={nav} />
-          </Suspense>
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <AskAgent examples={examplePrompts(viewer.role)} />
-            <span className="text-muted-foreground">
-              {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
-            </span>
-            <form action={signOut}>
-              <button className="text-muted-foreground underline-offset-2 hover:underline" type="submit">
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+    <>
+      <NavLinks items={nav} />
+      <div className="ml-auto flex items-center gap-3 text-sm">
+        <AskAgent examples={examplePrompts(viewer.role)} />
+        <span className="text-muted-foreground">
+          {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
+        </span>
+        <form action={signOut}>
+          <button className="text-muted-foreground underline-offset-2 hover:underline" type="submit">
+            Sign out
+          </button>
+        </form>
+      </div>
+    </>
+  );
+}
+
+/** Shown in the prerendered shell until the page's own data streams in. */
+function PageSkeleton() {
+  return (
+    <div aria-busy className="space-y-4">
+      <div className="h-8 w-56 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-80 animate-pulse rounded bg-muted" />
+      <div className="h-64 animate-pulse rounded-lg bg-muted" />
     </div>
   );
 }
