@@ -27,11 +27,11 @@ const KIND_LABEL: Record<ActionItem["kind"], string> = {
 // instance on serverless. It's written by an agent tool, not a Server Action,
 // so it can't be cleared on save (updateTag is Server Actions only). Instead
 // the chat panel clears the "digest" tag after each agent turn (afterAgentTurn in
-// ./actions.ts), and the "minutes" profile covers a digest written elsewhere,
-// such as the Friday schedule: it refreshes in the background after a minute.
+// ./actions.ts). A digest written elsewhere, such as by the Friday schedule,
+// shows within the hour: the "hours" profile refreshes it in the background.
 async function cachedDigest() {
   "use cache: remote";
-  cacheLife("minutes");
+  cacheLife("hours");
   cacheTag("digest");
   return latestDigest();
 }
