@@ -12,6 +12,7 @@ import { NavLinks } from "./_nav";
 // Everything that reads the sign-in cookie (the role-based nav, the agent panel
 // and the page itself) sits inside a Suspense boundary and streams in from the
 // function at request time. A signed-out request still redirects to /login.
+// Each tab's loading.tsx adds its real heading to that shell (see PageLoading).
 export default function HubLayout({ children }: { readonly children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -20,9 +21,20 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
           <Link className="font-semibold tracking-tight" href="/">
             SA Team Hub
           </Link>
-          <Suspense fallback={<div aria-hidden className="ml-auto h-5 w-40 animate-pulse rounded bg-muted" />}>
-            <ViewerHeader />
+          <Suspense fallback={<div aria-hidden className="h-5 w-72 animate-pulse rounded bg-muted" />}>
+            <ViewerNav />
           </Suspense>
+          <div className="ml-auto flex items-center gap-3 text-sm">
+            <Suspense fallback={<div aria-hidden className="h-5 w-40 animate-pulse rounded bg-muted" />}>
+              <ViewerControls />
+            </Suspense>
+            {/* Same for everyone, so it is part of the prerendered shell. */}
+            <form action={signOut}>
+              <button className="text-muted-foreground underline-offset-2 hover:underline" type="submit">
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">
@@ -32,8 +44,8 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
   );
 }
 
-/** The part of the header that depends on who is signed in. */
-async function ViewerHeader() {
+/** The tabs: managers see Talent, AI Usage and Settings as well. */
+async function ViewerNav() {
   const { viewer } = await requireActor();
   const nav = [
     { href: "/", label: "Home" },
@@ -50,21 +62,21 @@ async function ViewerHeader() {
         ]
       : []),
   ];
+  return <NavLinks items={nav} />;
+}
 
+/**
+ * The agent panel and the name. The panel stays out of the shared shell on purpose:
+ * its suggested prompts are chosen by role, and manager prompts must never reach an SA.
+ */
+async function ViewerControls() {
+  const { viewer } = await requireActor();
   return (
     <>
-      <NavLinks items={nav} />
-      <div className="ml-auto flex items-center gap-3 text-sm">
-        <AskAgent examples={examplePrompts(viewer.role)} />
-        <span className="text-muted-foreground">
-          {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
-        </span>
-        <form action={signOut}>
-          <button className="text-muted-foreground underline-offset-2 hover:underline" type="submit">
-            Sign out
-          </button>
-        </form>
-      </div>
+      <AskAgent examples={examplePrompts(viewer.role)} />
+      <span className="text-muted-foreground">
+        {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
+      </span>
     </>
   );
 }

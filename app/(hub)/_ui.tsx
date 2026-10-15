@@ -118,3 +118,20 @@ export function ManagerOnly() {
     </div>
   );
 }
+
+/**
+ * A route's loading state (its loading.tsx). With Cache Components it is part of the
+ * prerendered shell served from the CDN, so the page's real heading shows before
+ * the personal data streams in. Only text that is the same for everyone goes here.
+ */
+export function PageLoading({ title, subtitle }: { readonly title: string; readonly subtitle?: string }) {
+  return (
+    <div aria-busy>
+      <PageHeader subtitle={subtitle} title={title} />
+      <div className="space-y-4">
+        <div className="h-24 animate-pulse rounded-xl bg-muted" />
+        <div className="h-64 animate-pulse rounded-xl bg-muted" />
+      </div>
+    </div>
+  );
+}
