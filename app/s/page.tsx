@@ -1,13 +1,23 @@
+import { Suspense } from "react";
 import { AgentChat } from "@/app/_components/agent-chat";
 import { examplePrompts } from "@/lib/examples";
 import { requireActor } from "@/lib/viewer";
 
-// Cache Components: the chat page reads the sign-in cookie, so this route renders at request time.
-// `instant = false` allows that (the documented opt-out); cached pieces such
-// as the weekly digest still opt in with "use cache".
+// Cache Components: the page itself reads nothing personal, so the chat
+// (without example prompts) is prerendered and served from the CDN. The
+// sign-in check and the role's example prompts stream in behind Suspense;
+// signed-out visitors are still redirected to /login.
 export const instant = false;
 
-export default async function NewSessionPage() {
+export default function NewSessionPage() {
+  return (
+    <Suspense fallback={<AgentChat sessionless />}>
+      <SignedInChat />
+    </Suspense>
+  );
+}
+
+async function SignedInChat() {
   const { viewer } = await requireActor();
   return <AgentChat examples={examplePrompts(viewer.role)} sessionless />;
 }

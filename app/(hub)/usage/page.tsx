@@ -10,7 +10,9 @@ import { ManagerOnly, PageHeader, Section, Table, Td } from "../_ui";
 // (agent/lib/models.ts), so one query grouped by user gives the whole table.
 // Reports are account-wide, hence the tag filter. New calls take a few minutes
 // to show up. Each page view runs two report queries (per person, and per day
-// for the monthly chart), which Gateway bills.
+// for the monthly chart), which Gateway bills. The subtitle has no dates so
+// loading.tsx can show the same one in the prerendered shell; the dates stream
+// in the section note.
 
 const DAYS = 30;
 const MONTHS = 12;
@@ -45,8 +47,8 @@ export default async function UsagePage() {
 
   return (
     <>
-      <PageHeader subtitle={`AI spend per person over the last ${DAYS} days (${ymd(start)} to ${ymd(end)}, UTC).`} title="AI usage" />
-      <Section note="From AI Gateway reporting. New activity appears after a few minutes." title="Spend by person">
+      <PageHeader subtitle={`AI spend per person over the last ${DAYS} days.`} title="AI usage" />
+      <Section note={`${ymd(start)} to ${ymd(end)} UTC, from AI Gateway reporting. New activity appears after a few minutes.`} title="Spend by person">
         {!report.ok ? (
           <p className="rounded-xl border border-dashed bg-card p-6 text-muted-foreground text-sm">Couldn&apos;t load the report from AI Gateway: {report.error}</p>
         ) : rows.length === 0 ? (
