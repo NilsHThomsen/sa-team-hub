@@ -48,4 +48,7 @@ export async function answerPromotionCase(id: number, approve: boolean): Promise
 export async function afterAgentTurn(): Promise<void> {
   await requireActor();
   updateTag("digest");
+  // The agent may also have added or edited a team member or a skill (lib/cached.ts).
+  updateTag("people");
+  updateTag("skills");
 }

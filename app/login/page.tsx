@@ -1,6 +1,7 @@
+import { cachedPeople } from "@/lib/cached";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { listPeople } from "@/agent/lib/data";
+
 import { signIn } from "./actions";
 
 // Cache Components: the form is prerendered and served from the CDN. The
@@ -50,7 +51,7 @@ export default function LoginPage({ searchParams }: { readonly searchParams: Sea
 async function PeopleSelect() {
   // Wait for the request before touching Postgres, so the build never queries it.
   await connection();
-  const people = await listPeople();
+  const people = await cachedPeople();
   return (
     <select className="w-full rounded-md border bg-background px-3 py-2" defaultValue="jordan-hayes" name="personId">
       {people.map((p) => (

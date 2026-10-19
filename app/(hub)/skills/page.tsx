@@ -1,7 +1,8 @@
+import { cachedPeople, cachedSkillsMatrix } from "@/lib/cached";
 import type { Viewer } from "@/agent/lib/session";
 import type { Actor } from "@/agent/lib/actor";
 import { cacheLife } from "next/cache";
-import { listPeople, skillGaps, skillsMatrix } from "@/agent/lib/data";
+import { skillGaps } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
@@ -28,7 +29,7 @@ export default async function SkillsPage({ searchParams }: { readonly searchPara
 async function SkillsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
   "use cache: private";
   cacheLife({ stale: 60 });
-  const [people, allSkills, gaps, selected] = await Promise.all([listPeople(), skillsMatrix(), skillGaps(actor), selectedPeople(Promise.resolve(params))]);
+  const [people, allSkills, gaps, selected] = await Promise.all([cachedPeople(), cachedSkillsMatrix(), skillGaps(actor), selectedPeople(Promise.resolve(params))]);
   const byPerson = params[LAYOUT_PARAM] === "by-person";
   const toggle = new URLSearchParams(Object.entries(params).flatMap(([k, v]) => (k === LAYOUT_PARAM || v === undefined ? [] : [[k, String(v)]])));
   if (!byPerson) toggle.set(LAYOUT_PARAM, "by-person");

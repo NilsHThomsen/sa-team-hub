@@ -1,8 +1,9 @@
+import { cachedPeople } from "@/lib/cached";
 import type { Viewer } from "@/agent/lib/session";
 import type { Actor } from "@/agent/lib/actor";
 import { cacheLife } from "next/cache";
 import Link from "next/link";
-import { listAchievements, listPeople, listSentShoutouts } from "@/agent/lib/data";
+import { listAchievements, listSentShoutouts } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
@@ -21,7 +22,7 @@ export default async function AchievementsPage({ searchParams }: { readonly sear
 async function AchievementsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
   "use cache: private";
   cacheLife({ stale: 60 });
-  const [all, people, selected, sent] = await Promise.all([listAchievements(actor, { days: 365 }), listPeople(), selectedPeople(Promise.resolve(params)), listSentShoutouts(actor)]);
+  const [all, people, selected, sent] = await Promise.all([listAchievements(actor, { days: 365 }), cachedPeople(), selectedPeople(Promise.resolve(params)), listSentShoutouts(actor)]);
   const achievements = byPeople(all, selected, (a) => a.person_id);
 
   return (

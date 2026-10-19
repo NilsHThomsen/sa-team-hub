@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { setMonthlyBudget, setPrimaryModel, setSlackLink } from "@/agent/lib/data";
 import { requireActor } from "@/lib/viewer";
@@ -9,6 +9,7 @@ import { requireActor } from "@/lib/viewer";
 export async function savePrimaryModel(formData: FormData) {
   const { actor } = await requireActor();
   await setPrimaryModel(actor, String(formData.get("model") ?? ""));
+  updateTag("settings"); // cachedPrimaryModel in lib/cached.ts
   revalidatePath("/settings");
   redirect("/settings?saved=1");
 }

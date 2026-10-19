@@ -1,5 +1,6 @@
+import { cachedPeople } from "@/lib/cached";
 import { isManager } from "@/agent/lib/actor";
-import { listCandidates, listPeople, listPromotionCases, listRetentionRisks, listSuccession, listTalentRatings } from "@/agent/lib/data";
+import { listCandidates, listPromotionCases, listRetentionRisks, listSuccession, listTalentRatings } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "../_person-filter";
@@ -19,7 +20,7 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
     listSuccession(actor),
     listCandidates(actor),
     listPromotionCases(actor),
-    listPeople(),
+    cachedPeople(),
     selectedPeople(searchParams),
   ]);
   const ratings = byPeople(allRatings, selected, (r) => r.person_id);

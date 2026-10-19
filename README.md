@@ -2,7 +2,7 @@
 
 A dashboard and agent for running a Solutions Architect team. It takes the parts of an SA leader's business plan that usually live in spreadsheets (achievements, skills, development plans, deal coverage and talent planning) and lets the team keep them up to date by talking to an agent.
 
-Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and spend tracking), **Workflows** (promotion cases) and **Neon** Postgres. Everyone except the manager (me) is fictional.
+Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and spend tracking), **Workflows** (promotion cases and shout-outs) and **Neon** Postgres. Everyone except the manager (me) is fictional.
 
 ## What it does
 
@@ -14,7 +14,8 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 | Development Plans | Plans grouped by career goal, with next steps and overdue flags | Update a plan or career goal | `skills_and_plans` | `update_dev_plan`, `update_career_goal` |
 | Deal Coverage | Top 5 deals this quarter as a scorecard, SA coverage, stale next steps and overloaded SAs | Update next steps and the scorecard; create or reassign deals (managers) | `deals` (main can read coverage) | `review_deal_coverage`, `update_deal_next_step`, `update_deal_scorecard`, `manage_deal` |
 | Talent (managers only) | 9-box, retention risk, promotion cases, succession and warm bench | Update any of these; draft a promotion case and approve or decline it | `talent` | `get_talent_overview`, `update_talent_rating`, `update_retention_risk`, `draft_promotion_case`, `decide_promotion_case`, `update_succession`, `update_warm_bench`, `update_team_member` |
-| Settings (managers only) | Choose the AI model | | | |
+| AI Usage (managers only) | AI spend by person, feature and model, with filters; prompt-cache share; this month against a budget, with a burn-down and a projected run-out date | | | |
+| Settings (managers only) | Choose the AI model, set the monthly AI budget (US$100 by default) and link Slack accounts | | | |
 | Slack | DM or @mention the bot; the weekly digest is posted to a channel | Anything above | Main, handing off to specialists | `save_weekly_digest` (also posts the digest) |
 
 ## Try it
@@ -23,7 +24,7 @@ Sign in as **Nils Thomsen** (manager) or any SA, such as **Priya Nair**, with th
 
 ## Architecture
 
-A one-page diagram is in [sa-team-hub-architecture.pdf](sa-team-hub-architecture.pdf).
+A one-page diagram is in [sa-team-hub-architecture.pdf](sa-team-hub-architecture.pdf), and the numbered request flows are in [sa-team-hub-flows.pdf](sa-team-hub-flows.pdf).
 
 ```
 Browser ──► Next.js 16
@@ -40,7 +41,22 @@ Browser ──► Next.js 16
                  Postgres (Neon)
 ```
 
-Each specialist has its own instructions, tools and skills (`agent/subagents/<name>/`). Promotion cases run as a Workflow: gather evidence, score it, draft the case, then wait for the manager to approve or decline.
+Each specialist has its own instructions, tools and skills (`agent/subagents/<name>/`). Promotion cases run as a Workflow: gather evidence, score it, draft the case, then wait for the manager to approve or decline. Shout-outs are a Workflow too: announce, wait for the recipient to accept (up to 7 days), then record the win.
+
+### Rendering and caching
+
+Cache Components is on (`next.config.ts`), so every page is a partial prerender: the static shell comes from Vercel's CDN and the personal content streams from the function in Sydney (syd1, next to the Neon database).
+
+| What | How it's cached | Cleared by |
+| --- | --- | --- |
+| Page shells (header, nav, headings, loading skeletons) | Prerendered, served from the CDN | A new deploy |
+| Your own pages: Home, Achievements, Deals, Dev Plans, Skills | `"use cache: private"`, 60 seconds, in your browser only | Any button that changes data (`revalidatePath`), each chat turn, a reload |
+| AI Usage | `"use cache: private"`, 5 minutes, so going back and forth doesn't re-run the billed Gateway reports | Saving a budget, a reload |
+| Weekly digest | `"use cache: remote"` (Runtime Cache, one copy for all instances), hourly | `updateTag("digest")` after each chat turn |
+| Team roster, Skills Matrix, selected model | `"use cache: remote"` in `lib/cached.ts`: hourly, every minute, hourly | `updateTag` after each chat turn (roster, skills) or on saving the model |
+| Talent (9-box, retention, succession) and Settings | Never cached | |
+
+Personal data is only ever cached in the person's own browser. Shared caches hold only what everyone may see. Agent tools read Postgres directly.
 
 ### Security: individual input vs management eyes only
 
@@ -58,4 +74,5 @@ The demo sign-in stands in for SSO; swapping in Okta or Sign in with Vercel only
 
 - A retried step can't log the same win or save the same promotion case twice.
 - A promotion case can wait days for the manager's decision without holding anything open.
-- AI Gateway switches to a second provider if the first is down, tags spend by feature, and each chat has a $1 cost cap.
+- AI Gateway switches to a second provider if the first is down, tags spend by feature and person, and each chat has a $1 cost cap.
+- The AI Usage page reads Gateway's spend reports and compares this month with a budget set on Settings. The budget is a target for the page; a hard stop is an AI Gateway budget in the Vercel dashboard.

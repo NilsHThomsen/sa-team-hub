@@ -1,8 +1,11 @@
+import { cacheLife } from "next/cache";
+import type { Actor } from "@/agent/lib/actor";
+import { cachedPeople, cachedPrimaryModel } from "@/lib/cached";
 import { createGateway } from "ai";
 import Link from "next/link";
 import { isManager } from "@/agent/lib/actor";
-import { countPromotionCases, getMonthlyBudget, listPeople } from "@/agent/lib/data";
-import { APP_TAG, fallbackFor, isModelId, MODEL_OPTIONS, type ModelId, modelLabel, primaryModel } from "@/agent/lib/models";
+import { countPromotionCases, getMonthlyBudget } from "@/agent/lib/data";
+import { APP_TAG, fallbackFor, isModelId, MODEL_OPTIONS, type ModelId, modelLabel } from "@/agent/lib/models";
 import type { SearchParams } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { ManagerOnly, PageHeader, Section, Stat, Table, Td } from "../_ui";
@@ -71,11 +74,19 @@ function share(cost: number, total: number): string {
 }
 
 export default async function UsagePage({ searchParams }: { readonly searchParams: SearchParams }) {
-  const { actor } = await requireActor();
+  const [{ actor }, params] = await Promise.all([requireActor(), searchParams]);
   // Hidden from ICs in the nav; check again for a typed URL.
   if (!isManager(actor)) return <ManagerOnly />;
+  return <UsageBody actor={actor} params={params} />;
+}
 
-  const [people, params] = await Promise.all([listPeople(), searchParams]);
+// "use cache: private" for 5 minutes: the result stays in this manager's browser only,
+// so going back and forth doesn't re-run the Gateway report queries, which are billed.
+// Saving a budget on Settings clears it (revalidatePath); a reload fetches fresh numbers.
+async function UsageBody({ actor, params }: { readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
+  "use cache: private";
+  cacheLife({ stale: 300 });
+  const people = await cachedPeople();
   const filters = readFilters(params, new Set([...people.map((p) => p.id), "app"]));
   const filtered = Boolean(filters.person || filters.model || filters.feature);
 
@@ -93,7 +104,7 @@ export default async function UsagePage({ searchParams }: { readonly searchParam
   const period = { startDate: ymd(start), endDate: ymd(end) };
 
   const [primary, budget, byPerson, byFeature, byModel, daily, wholeMonth, cases] = await Promise.all([
-    primaryModel(),
+    cachedPrimaryModel(),
     getMonthlyBudget(actor),
     spendReport({ ...period, ...scope, groupBy: "user" }),
     spendReport({ ...period, ...scope, groupBy: "tag" }),

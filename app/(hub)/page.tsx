@@ -1,10 +1,11 @@
+import { cachedPeople } from "@/lib/cached";
 import type { Viewer } from "@/agent/lib/session";
 import type { Actor } from "@/agent/lib/actor";
 import { cacheLife, cacheTag } from "next/cache";
 import Link from "next/link";
 import { type ActionItem, actionItems } from "@/agent/lib/actions";
 import { isManager } from "@/agent/lib/actor";
-import { dealCoverage, latestDigest, listAchievements, listDevPlans, listPeople, listRetentionRisks, summarizeDeals } from "@/agent/lib/data";
+import { dealCoverage, latestDigest, listAchievements, listDevPlans, listRetentionRisks, summarizeDeals } from "@/agent/lib/data";
 import { byPeople, PEOPLE_PARAM, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
 import { PersonFilter } from "./_person-filter";
@@ -60,7 +61,7 @@ async function HomeBody({ viewer, actor, params }: { readonly viewer: Viewer; re
     listAchievements(actor, { days: 90 }),
     cachedDigest(),
     manager ? listRetentionRisks(actor) : Promise.resolve([]),
-    listPeople(),
+    cachedPeople(),
     selectedPeople(Promise.resolve(params)),
     actionItems(actor),
   ]);

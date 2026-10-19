@@ -1,8 +1,9 @@
+import { cachedPeople } from "@/lib/cached";
 import type { Viewer } from "@/agent/lib/session";
 import type { Actor } from "@/agent/lib/actor";
 import { cacheLife } from "next/cache";
 import { CAREER_GOALS } from "@/agent/lib/career-goals";
-import { type CareerGoalRow, type DevPlan, listCareerGoals, listDevPlans, listPeople } from "@/agent/lib/data";
+import { type CareerGoalRow, type DevPlan, listCareerGoals, listDevPlans } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { cn } from "@/lib/utils";
 import { requireActor } from "@/lib/viewer";
@@ -25,7 +26,7 @@ async function DevPlansBody({ viewer, actor, params }: { readonly viewer: Viewer
   "use cache: private";
   cacheLife({ stale: 60 });
   const manager = viewer.role === "manager";
-  const [allPlans, allGoals, people, selected] = await Promise.all([listDevPlans(actor), listCareerGoals(actor), listPeople(), selectedPeople(Promise.resolve(params))]);
+  const [allPlans, allGoals, people, selected] = await Promise.all([listDevPlans(actor), listCareerGoals(actor), cachedPeople(), selectedPeople(Promise.resolve(params))]);
   const plans = byPeople(allPlans, selected, (p) => p.person_id);
   const goals = byPeople(allGoals, selected, (g) => g.person_id);
 
