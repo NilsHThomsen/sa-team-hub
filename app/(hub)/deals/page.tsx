@@ -49,7 +49,9 @@ function Score({ value }: { readonly value: number }) {
 export default async function DealsPage({ searchParams }: { readonly searchParams: SearchParams }) {
   // Sign-in check (and its redirect) stays outside the cache.
   const [{ viewer, actor }, params] = await Promise.all([requireActor(), searchParams]);
-  return <DealsBody actor={actor} params={params} viewer={viewer} />;
+  // The quarter reads the clock, so it's worked out here and passed in rather than
+  // read inside the cached body.
+  return <DealsBody actor={actor} params={params} quarter={currentQuarter()} viewer={viewer} />;
 }
 
 // "use cache: private": the result is kept only in this person's browser, never in a
@@ -57,7 +59,7 @@ export default async function DealsPage({ searchParams }: { readonly searchParam
 // five minutes reuse it without a server round trip (below 5 minutes the router fetches
 // again on every navigation). Server Actions (revalidatePath, and updateTag after each
 // chat turn) clear it; a reload always fetches fresh data.
-async function DealsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
+async function DealsBody({ viewer, actor, params, quarter }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams>; readonly quarter: string }) {
   "use cache: private";
   cacheLife({ stale: 300 });
   const [coverage, people, selected] = await Promise.all([dealCoverage(actor), cachedPeople(), selectedPeople(Promise.resolve(params))]);
@@ -65,7 +67,7 @@ async function DealsBody({ viewer, actor, params }: { readonly viewer: Viewer; r
   // Filter by the covering SA. ICs already see only their own deals, so the filter is for managers.
   const deals = manager ? byPeople(coverage.deals, selected, (d) => d.sa_id) : coverage.deals;
   const summary = manager && selected ? summarizeDeals(deals) : coverage.summary;
-  const top = topDeals(deals);
+  const top = topDeals(deals, 5, quarter);
 
   return (
     <>
@@ -81,7 +83,7 @@ async function DealsBody({ viewer, actor, params }: { readonly viewer: Viewer; r
         <Stat label="Presales vs forecast mismatches" tone={summary.stage_misaligned > 0 ? "warn" : "good"} value={summary.stage_misaligned} />
         <Stat label="Next steps older than 14 days" tone={summary.stale_next_steps > 0 ? "warn" : "good"} value={summary.stale_next_steps} />
       </div>
-      <Section note="Score: 15 for each deliverable done, plus up to 40 for the SA stage" title={manager ? `Top 5 deals this quarter (${currentQuarter()})` : `Your top deals this quarter (${currentQuarter()})`}>
+      <Section note="Score: 15 for each deliverable done, plus up to 40 for the SA stage" title={manager ? `Top 5 deals this quarter (${quarter})` : `Your top deals this quarter (${quarter})`}>
         {top.length === 0 ? (
           <p className="text-muted-foreground text-sm">{manager ? "No open deals close this quarter." : "None of your deals close this quarter."}</p>
         ) : (

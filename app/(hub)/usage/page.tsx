@@ -18,9 +18,7 @@ import { UsageFilters } from "./_filters";
 // account-wide, hence the APP_TAG filter. New calls take a few minutes to show
 // up. The Person, Model and Feature filters live in the URL and narrow every
 // report on the page except the budget, which is always the whole app. Each
-// report query is billed by Gateway. The subtitle has no dates so loading.tsx
-// can show the same one in the prerendered shell; the dates stream in the
-// section notes.
+// report query is billed by Gateway. The dates are in the section notes.
 
 const DAYS = 30;
 const MONTHS = 12;

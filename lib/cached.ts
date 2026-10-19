@@ -19,10 +19,14 @@ export async function cachedPeople() {
   return [...(await listPeople())];
 }
 
-/** The Skills Matrix. Everyone sees the same rows; skill updates arrive often, so it refreshes every minute. */
+/**
+ * The Skills Matrix. Everyone sees the same rows; skill updates arrive often, so it
+ * refreshes every 5 minutes. Not the "minutes" profile: its 1-minute revalidate
+ * looked to stop the Skills page's private cache being reused on navigation.
+ */
 export async function cachedSkillsMatrix() {
   "use cache: remote";
-  cacheLife("minutes");
+  cacheLife({ stale: 300, revalidate: 300, expire: 3600 });
   cacheTag("skills");
   return [...(await skillsMatrix())];
 }

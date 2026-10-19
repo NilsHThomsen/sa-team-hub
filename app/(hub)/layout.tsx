@@ -12,7 +12,9 @@ import { NavLinks } from "./_nav";
 // Everything that reads the sign-in cookie (the role-based nav, the agent's prompts
 // and the page itself) sits inside a Suspense boundary and streams in from the
 // function at request time. A signed-out request still redirects to /login.
-// Each tab's loading.tsx adds its real heading to that shell (see PageLoading).
+// Tabs have no loading.tsx on purpose: on a click, the page you're on stays up
+// until the next one is ready (often straight from the browser's private cache),
+// instead of flashing a skeleton. A first, full page load shows PageSkeleton.
 export default function HubLayout({ children }: { readonly children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-background text-foreground">

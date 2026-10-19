@@ -49,11 +49,11 @@ Cache Components is on (`next.config.ts`), so every page is a partial prerender:
 
 | What | How it's cached | Cleared by |
 | --- | --- | --- |
-| Page shells (header, nav, headings, loading skeletons) | Prerendered, served from the CDN | A new deploy |
+| Page shells (header, Ask the agent button, a loading skeleton for a first visit) | Prerendered, served from the CDN | A new deploy |
 | Your own pages: Home, Achievements, Deals, Dev Plans, Skills | `"use cache: private"`, 5 minutes, in your browser only | Any button that changes data (`revalidatePath`), each chat turn, a reload |
 | AI Usage | `"use cache: private"`, 5 minutes, so going back and forth doesn't re-run the billed Gateway reports | Saving a budget, a reload |
 | Weekly digest | `"use cache: remote"` (Runtime Cache, one copy for all instances), hourly | `updateTag("digest")` after each chat turn |
-| Team roster, Skills Matrix, selected model | `"use cache: remote"` in `lib/cached.ts`: hourly, every minute, hourly | `updateTag` after each chat turn (roster, skills) or on saving the model |
+| Team roster, Skills Matrix, selected model | `"use cache: remote"` in `lib/cached.ts`: hourly, every 5 minutes, hourly | `updateTag` after each chat turn (roster, skills) or on saving the model |
 | Talent (9-box, retention, succession) and Settings | Never cached | |
 
 Personal data is only ever cached in the person's own browser. Shared caches hold only what everyone may see. Agent tools read Postgres directly.
