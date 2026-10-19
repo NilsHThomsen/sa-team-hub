@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { setPrimaryModel, setSlackLink } from "@/agent/lib/data";
+import { setMonthlyBudget, setPrimaryModel, setSlackLink } from "@/agent/lib/data";
 import { requireActor } from "@/lib/viewer";
 
 /** Saves the primary model. setPrimaryModel refuses anyone who is not a manager. */
@@ -24,4 +24,17 @@ export async function saveSlackLink(formData: FormData) {
   }
   revalidatePath("/settings");
   redirect("/settings?slackSaved=1#slack");
+}
+
+/** Saves (or clears) the monthly AI spend target shown on AI Usage. setMonthlyBudget refuses non-managers and bad amounts. */
+export async function saveMonthlyBudget(formData: FormData) {
+  const { actor } = await requireActor();
+  try {
+    await setMonthlyBudget(actor, String(formData.get("budget") ?? ""));
+  } catch (err) {
+    redirect(`/settings?budgetError=${encodeURIComponent(err instanceof Error ? err.message : "Could not save")}#budget`);
+  }
+  revalidatePath("/settings");
+  revalidatePath("/usage");
+  redirect("/settings?budgetSaved=1#budget");
 }

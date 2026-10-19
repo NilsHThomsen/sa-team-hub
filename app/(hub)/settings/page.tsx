@@ -1,17 +1,17 @@
 import { isManager } from "@/agent/lib/actor";
-import { getModelSetting, listSlackLinks } from "@/agent/lib/data";
+import { getModelSetting, getMonthlyBudget, listSlackLinks } from "@/agent/lib/data";
 import { fallbackFor, MODEL_OPTIONS, modelLabel } from "@/agent/lib/models";
 import { Button } from "@/components/ui/button";
 import { requireActor } from "@/lib/viewer";
 import { ManagerOnly, PageHeader, Section, Table, Td } from "../_ui";
-import { savePrimaryModel, saveSlackLink } from "./actions";
+import { saveMonthlyBudget, savePrimaryModel, saveSlackLink } from "./actions";
 
 export default async function SettingsPage({ searchParams }: { readonly searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { actor } = await requireActor();
   // Hidden from ICs in the nav; check again for a typed URL. The data layer refuses them too.
   if (!isManager(actor)) return <ManagerOnly />;
 
-  const [setting, links, params] = await Promise.all([getModelSetting(actor), listSlackLinks(actor), searchParams]);
+  const [setting, budget, links, params] = await Promise.all([getModelSetting(actor), getMonthlyBudget(actor), listSlackLinks(actor), searchParams]);
 
   return (
     <>
@@ -43,6 +43,33 @@ export default async function SettingsPage({ searchParams }: { readonly searchPa
                 Last changed by {setting.updated_by_name}, {setting.updated_at}
               </span>
             ) : null}
+          </div>
+        </form>
+      </Section>
+
+      <Section note="Shown on AI Usage" title="Monthly AI budget">
+        <form action={saveMonthlyBudget} className="space-y-3 rounded-xl border bg-card p-4" id="budget">
+          <p className="text-muted-foreground text-sm">
+            A monthly target in US dollars for the whole app. AI Usage compares this month&apos;s spend and forecast against it. It doesn&apos;t
+            stop any calls; for a hard stop, set an AI Gateway budget in the Vercel dashboard. Leave it empty to clear it.
+          </p>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              US$
+              <input
+                aria-label="Monthly AI budget in US dollars"
+                className="w-28 rounded-md border bg-background px-2 py-1 text-sm tabular-nums"
+                defaultValue={budget ?? ""}
+                inputMode="decimal"
+                name="budget"
+                placeholder="Not set"
+              />
+            </label>
+            <Button type="submit" variant="outline">
+              Save
+            </Button>
+            {params.budgetSaved ? <span className="text-emerald-600 text-sm">Saved.</span> : null}
+            {params.budgetError ? <span className="text-red-600 text-sm">{String(params.budgetError)}</span> : null}
           </div>
         </form>
       </Section>

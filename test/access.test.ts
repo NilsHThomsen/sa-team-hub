@@ -20,6 +20,9 @@ import {
   setCareerGoal,
   getModelSetting,
   setPrimaryModel,
+  getMonthlyBudget,
+  setMonthlyBudget,
+  countPromotionCases,
   setSlackLink,
   setRetentionRisk,
   skillGaps,
@@ -240,6 +243,35 @@ describe("primary model setting", () => {
     assert.equal(await primaryModel(), "anthropic/claude-opus-5.5");
     await setPrimaryModel(manager, DEFAULT_MODEL);
     assert.equal(await primaryModel(), DEFAULT_MODEL);
+  });
+});
+
+describe("monthly AI budget", () => {
+  after(async () => {
+    await setMonthlyBudget(manager, "");
+  });
+
+  test("only a manager can read or set it, and only as a positive dollar amount", async () => {
+    await assert.rejects(getMonthlyBudget(priya), AccessDenied);
+    await assert.rejects(setMonthlyBudget(priya, "100"), AccessDenied);
+    await assert.rejects(setMonthlyBudget(app, "100"), AccessDenied);
+    await assert.rejects(setMonthlyBudget(manager, "lots"), /US dollars/);
+    await assert.rejects(setMonthlyBudget(manager, "-5"), /US dollars/);
+  });
+
+  test("saves, reads back and clears", async () => {
+    assert.equal(await setMonthlyBudget(manager, "US$1,250"), 1250);
+    assert.equal(await getMonthlyBudget(manager), 1250);
+    assert.equal(await setMonthlyBudget(manager, ""), null);
+    assert.equal(await getMonthlyBudget(manager), null);
+  });
+
+  test("promotion case counts are for managers only", async () => {
+    await assert.rejects(countPromotionCases(priya, "2026-01-01", "2026-12-31"), AccessDenied);
+    const all = await countPromotionCases(manager, "2000-01-01", "2100-01-01");
+    const nobody = await countPromotionCases(manager, "2000-01-01", "2100-01-01", "no-such-person");
+    assert.ok(all >= 0);
+    assert.equal(nobody, 0);
   });
 });
 

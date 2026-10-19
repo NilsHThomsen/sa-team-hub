@@ -397,6 +397,50 @@ export async function setPrimaryModel(actor: Actor, model: string): Promise<Mode
   return getModelSetting(actor);
 }
 
+// ---------- AI spend budget ----------
+
+const BUDGET_KEY = "monthly_budget_usd";
+
+/** The monthly AI spend target set on the Settings page, in US dollars, or null if none. Managers only. */
+export async function getMonthlyBudget(actor: Actor): Promise<number | null> {
+  requireManager(actor, "The AI budget");
+  const [row] = await db()<{ value: string }[]>`select value from app_settings where key = ${BUDGET_KEY}`;
+  const value = row ? Number(row.value) : Number.NaN;
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * Set the monthly AI spend target, or clear it with an empty value. Managers only.
+ * It's our own number for the AI Usage page: Gateway's reporting API doesn't return
+ * the budget set in the Vercel dashboard, and this doesn't change that budget.
+ */
+export async function setMonthlyBudget(actor: Actor, input: string): Promise<number | null> {
+  requireManager(actor, "The AI budget");
+  if (actor.kind !== "user") throw new AccessDenied("The AI budget needs a signed-in manager.");
+  const text = input.trim().replace(/^(US)?\$/i, "").replaceAll(",", "");
+  if (!text) {
+    await db()`delete from app_settings where key = ${BUDGET_KEY}`;
+    return null;
+  }
+  const value = Number(text);
+  if (!Number.isFinite(value) || value <= 0 || value > 100_000) throw new Error("Enter the budget in US dollars, for example 100.");
+  await db()`
+    insert into app_settings (key, value, updated_by, updated_at)
+    values (${BUDGET_KEY}, ${String(value)}, ${actor.personId}, now())
+    on conflict (key) do update set value = excluded.value, updated_by = excluded.updated_by, updated_at = now()`;
+  return value;
+}
+
+/** Promotion cases drafted between two UTC dates (inclusive), optionally by one manager. For cost per case on AI Usage. Managers only. */
+export async function countPromotionCases(actor: Actor, from: string, to: string, createdBy?: string): Promise<number> {
+  requireManager(actor, "Promotion cases");
+  const [row] = await db()<{ n: number }[]>`
+    select count(*)::int as n from promotion_cases
+    where created_at >= ${from}::date and created_at < ${to}::date + 1
+      and (${createdBy ?? null}::text is null or created_by = ${createdBy ?? null})`;
+  return row?.n ?? 0;
+}
+
 // ---------- Slack links ----------
 
 const SLACK_ID = /^[UW][A-Z0-9]{6,}$/;
