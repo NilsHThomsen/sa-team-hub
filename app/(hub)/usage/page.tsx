@@ -121,10 +121,9 @@ export default async function UsagePage({ searchParams }: { readonly searchParam
     : null;
   const note = filterNote ? `${range}. Filtered: ${filterNote}.` : `${range}, from AI Gateway reporting. New activity appears after a few minutes.`;
 
-  // Month to date for the budget: from the unfiltered query when a filter is on, else from the daily rows.
-  const monthKey = ymd(monthStart).slice(0, 7);
+  // This month by day for the budget: from the unfiltered query when a filter is on, else from the daily rows.
   const monthSource = filtered ? wholeMonth : daily;
-  const monthToDate = monthSource?.ok ? monthSource.rows.filter((r) => r.day?.startsWith(monthKey)).reduce((s, r) => s + r.totalCost, 0) : null;
+  const monthDays = spendByDay(monthSource, end);
 
   return (
     <>
@@ -135,7 +134,7 @@ export default async function UsagePage({ searchParams }: { readonly searchParam
       />
 
       <Section note="Whole app, this month, UTC. Filters don't apply." title="This month against budget">
-        <BudgetView budget={budget} end={end} monthToDate={monthToDate} />
+        <BudgetView budget={budget} days={monthDays} end={end} />
       </Section>
 
       <Section note={note} title="Spend by person">
@@ -204,35 +203,195 @@ function Empty() {
   return <p className="rounded-xl border border-dashed bg-card p-6 text-muted-foreground text-sm">No AI usage recorded for this app in the period yet.</p>;
 }
 
-function BudgetView({ budget, monthToDate, end }: { readonly budget: number | null; readonly monthToDate: number | null; readonly end: Date }) {
-  if (monthToDate === null) return <ReportError error="no data for this month" />;
-  const day = end.getUTCDate();
+const TREND_DAYS = 7;
+
+/**
+ * Spend per day of the current UTC month, day 1 to today. Days with no rows are 0.
+ * Null when the report failed.
+ */
+function spendByDay(source: Report | null, end: Date): number[] | null {
+  if (!source?.ok) return null;
+  const key = ymd(end).slice(0, 7);
+  const days = Array.from({ length: end.getUTCDate() }, () => 0);
+  for (const r of source.rows) {
+    if (!r.day?.startsWith(key)) continue;
+    const i = Number(r.day.slice(8, 10)) - 1;
+    if (i >= 0 && i < days.length) days[i] += r.totalCost;
+  }
+  return days;
+}
+
+type Burn = {
+  day: number;
+  daysInMonth: number;
+  spent: number;
+  /** Dollars per day the projection uses. */
+  rate: number;
+  /** How many full days the rate is averaged over (0 on the 1st, when only today is known). */
+  rateDays: number;
+  projected: number;
+  /** Day of the month the budget runs out at the current rate, if that's before month end. */
+  runOutDay: number | null;
+};
+
+/**
+ * Burn-down maths. The rate is the average of the last 7 full days (today is
+ * still running, so it's left out), or of every full day so far early in the
+ * month. That follows the recent trend instead of the whole month's average.
+ */
+function burn(days: readonly number[], end: Date, budget: number | null): Burn {
+  const day = days.length;
   const daysInMonth = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
-  // Straight line: spend so far, divided by days so far, times days in the month.
-  const forecast = (monthToDate / day) * daysInMonth;
-  const used = budget ? monthToDate / budget : null;
+  const spent = days.reduce((s, d) => s + d, 0);
+  const full = days.slice(0, -1);
+  const window = full.slice(-TREND_DAYS);
+  const rate = window.length > 0 ? window.reduce((s, d) => s + d, 0) / window.length : spent;
+  // Today counts as one more day at the trend rate, less what today has already spent.
+  const daysLeft = daysInMonth - day + 1;
+  const projected = spent - (days[day - 1] ?? 0) + rate * daysLeft;
+  let runOutDay: number | null = null;
+  if (budget && rate > 0) {
+    if (spent >= budget) runOutDay = day;
+    else {
+      const left = budget - (spent - (days[day - 1] ?? 0));
+      const when = day + Math.ceil(left / rate) - 1;
+      runOutDay = when <= daysInMonth ? when : null;
+    }
+  }
+  return { day, daysInMonth, spent, rate, rateDays: window.length, projected, runOutDay };
+}
+
+function monthDay(end: Date, d: number): string {
+  return new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), d)).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+function BudgetView({ budget, days, end }: { readonly budget: number | null; readonly days: readonly number[] | null; readonly end: Date }) {
+  if (days === null) return <ReportError error="no data for this month" />;
+  const b = burn(days, end, budget);
+  const used = budget ? b.spent / budget : null;
+
+  // One sentence answering "will it run out, or leave money on the table?"
+  let verdict: { text: string; tone: "good" | "warn" | "bad" | "neutral" };
+  if (!budget) verdict = { text: `On the recent trend the month ends at about ${usd0.format(b.projected)}. Set a budget in Settings to see the burn-down.`, tone: "neutral" };
+  else if (b.spent >= budget) verdict = { text: `The budget is used up: ${usd0.format(b.spent - budget)} over so far.`, tone: "bad" };
+  else if (b.runOutDay !== null)
+    verdict = { text: `At the recent rate the budget runs out on ${monthDay(end, b.runOutDay)}, ${b.daysInMonth - b.runOutDay} days before the month ends.`, tone: "bad" };
+  else {
+    const left = budget - b.projected;
+    const pct = Math.round((left / budget) * 100);
+    verdict =
+      pct >= 25
+        ? { text: `On track to leave about ${usd0.format(left)} unused (${pct}% of the budget).`, tone: "warn" }
+        : { text: `On track to finish within budget, with about ${usd0.format(left)} to spare.`, tone: "good" };
+  }
+
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label={`So far (day ${day} of ${daysInMonth})`} tone={budget && monthToDate > budget ? "bad" : "neutral"} value={usd0.format(monthToDate)} />
-        <Stat label="Forecast for the month" tone={budget && forecast > budget ? "warn" : "neutral"} value={usd0.format(forecast)} />
+      <div className="grid gap-3 sm:grid-cols-4">
+        <Stat label={`Spent (day ${b.day} of ${b.daysInMonth})`} tone={budget && b.spent > budget ? "bad" : "neutral"} value={usd0.format(b.spent)} />
+        <Stat label={`Recent rate (${b.rateDays || 1}-day average)`} value={`${usd0.format(b.rate)}/day`} />
+        <Stat label="Projected for the month" tone={budget && b.projected > budget ? "warn" : "neutral"} value={usd0.format(b.projected)} />
         <Stat href="/settings#budget" label="Budget" value={budget ? usd0.format(budget) : "Not set"} />
       </div>
-      {budget && used !== null ? (
-        <div className="rounded-xl border bg-card p-4">
-          <div className="mb-2 flex justify-between text-muted-foreground text-xs">
-            <span>{Math.round(used * 100)}% of the budget used</span>
-            <span>Forecast {Math.round((forecast / budget) * 100)}%</span>
-          </div>
-          <div className="relative h-2 rounded-full bg-muted">
-            <div className={`h-2 rounded-full ${used > 1 ? "bg-red-600" : forecast > budget ? "bg-amber-500" : "bg-emerald-600"}`} style={{ width: `${Math.min(100, used * 100)}%` }} />
-          </div>
-        </div>
-      ) : null}
+      <p
+        className={`rounded-xl border bg-card p-4 font-medium text-sm ${verdict.tone === "bad" ? "text-red-600" : verdict.tone === "warn" ? "text-amber-600" : verdict.tone === "good" ? "text-emerald-600" : ""}`}
+      >
+        {verdict.text}
+      </p>
+      {budget && used !== null ? <BurnDown budget={budget} burn={b} days={days} end={end} /> : null}
       <p className="text-muted-foreground text-xs">
         The budget is a target for this page, set in <Link className="underline" href="/settings#budget">Settings</Link>; it doesn&apos;t stop any
-        calls. A hard stop is an AI Gateway budget in the Vercel dashboard. The forecast assumes the rest of the month looks like the days so far.
+        calls. A hard stop is an AI Gateway budget in the Vercel dashboard. The projection uses the average of the last {TREND_DAYS} full days, so
+        a quiet week early in the month can understate it.
       </p>
+    </div>
+  );
+}
+
+const W = 600;
+const H = 180;
+
+/** Remaining budget by day: actual so far (solid), the even pace (grey dashes) and the projection (blue dashes). */
+function BurnDown({ budget, days, burn: b, end }: { readonly budget: number; readonly days: readonly number[]; readonly burn: Burn; readonly end: Date }) {
+  // x: start of day 1 (0) to end of the month (daysInMonth). y: remaining budget, floored at 0.
+  const x = (d: number) => (d / b.daysInMonth) * W;
+  const y = (remaining: number) => H - (Math.max(0, remaining) / budget) * H;
+
+  let running = budget;
+  const actual = [`${x(0)},${y(budget)}`];
+  const points = days.map((spend, i) => {
+    running -= spend;
+    actual.push(`${x(i + 1)},${y(running)}`);
+    return { day: i + 1, spend, remaining: running };
+  });
+  const startProjection = budget - (b.spent - (days[b.day - 1] ?? 0)); // remaining at the start of today
+  const projectionEnd = b.runOutDay !== null ? { d: b.runOutDay, r: 0 } : { d: b.daysInMonth, r: budget - b.projected };
+
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground text-xs">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-0.5 w-4 rounded bg-[#2a78d6] dark:bg-[#3987e5]" />
+          Budget left
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-4 border-[#2a78d6] border-t-2 border-dashed dark:border-[#3987e5]" />
+          Projection
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-4 border-muted-foreground/60 border-t-2 border-dashed" />
+          Even pace
+        </span>
+      </div>
+      <div className="relative" style={{ height: H }}>
+        <svg aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" viewBox={`0 0 ${W} ${H}`}>
+          <line className="stroke-border" vectorEffect="non-scaling-stroke" x1={0} x2={W} y1={H} y2={H} />
+          <line className="stroke-muted-foreground/50" strokeDasharray="4 4" strokeWidth={1.5} vectorEffect="non-scaling-stroke" x1={x(0)} x2={x(b.daysInMonth)} y1={y(budget)} y2={y(0)} />
+          <line
+            className="stroke-[#2a78d6] dark:stroke-[#3987e5]"
+            strokeDasharray="5 4"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+            x1={x(b.day - 1)}
+            x2={x(projectionEnd.d)}
+            y1={y(startProjection)}
+            y2={y(projectionEnd.r)}
+          />
+          <polyline
+            className="stroke-[#2a78d6] dark:stroke-[#3987e5]"
+            fill="none"
+            points={actual.join(" ")}
+            strokeLinejoin="round"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+          {points.map((p) => (
+            // Hover target is the whole day column, wider than the line.
+            <rect fill="transparent" height={H} key={p.day} width={W / b.daysInMonth} x={x(p.day - 1)} y={0}>
+              <title>{`${monthDay(end, p.day)}: spent ${usd.format(p.spend)}, ${usd0.format(Math.max(0, p.remaining))} left`}</title>
+            </rect>
+          ))}
+        </svg>
+      </div>
+      <div className="mt-2 flex justify-between text-muted-foreground text-xs">
+        <span>{monthDay(end, 1)}</span>
+        <span>
+          {b.runOutDay !== null && b.runOutDay < b.daysInMonth ? `Runs out ${monthDay(end, b.runOutDay)}` : `${usd0.format(Math.max(0, budget - b.projected))} left at month end`}
+        </span>
+        <span>{monthDay(end, b.daysInMonth)}</span>
+      </div>
+      <table className="sr-only">
+        <caption>Budget left by day this month, in USD</caption>
+        <tbody>
+          {points.map((p) => (
+            <tr key={p.day}>
+              <th scope="row">{monthDay(end, p.day)}</th>
+              <td>{usd.format(p.spend)} spent</td>
+              <td>{usd0.format(Math.max(0, p.remaining))} left</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

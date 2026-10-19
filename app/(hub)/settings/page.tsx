@@ -51,7 +51,7 @@ export default async function SettingsPage({ searchParams }: { readonly searchPa
         <form action={saveMonthlyBudget} className="space-y-3 rounded-xl border bg-card p-4" id="budget">
           <p className="text-muted-foreground text-sm">
             A monthly target in US dollars for the whole app. AI Usage compares this month&apos;s spend and forecast against it. It doesn&apos;t
-            stop any calls; for a hard stop, set an AI Gateway budget in the Vercel dashboard. Leave it empty to clear it.
+            stop any calls; for a hard stop, set an AI Gateway budget in the Vercel dashboard. Leave it empty to go back to the US$100 default.
           </p>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm">
@@ -59,10 +59,10 @@ export default async function SettingsPage({ searchParams }: { readonly searchPa
               <input
                 aria-label="Monthly AI budget in US dollars"
                 className="w-28 rounded-md border bg-background px-2 py-1 text-sm tabular-nums"
-                defaultValue={budget ?? ""}
+                defaultValue={budget}
                 inputMode="decimal"
                 name="budget"
-                placeholder="Not set"
+                placeholder="100"
               />
             </label>
             <Button type="submit" variant="outline">

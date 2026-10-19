@@ -400,27 +400,29 @@ export async function setPrimaryModel(actor: Actor, model: string): Promise<Mode
 // ---------- AI spend budget ----------
 
 const BUDGET_KEY = "monthly_budget_usd";
+/** Used until a manager sets a budget on the Settings page, and again after they clear it. */
+export const DEFAULT_MONTHLY_BUDGET = 100;
 
-/** The monthly AI spend target set on the Settings page, in US dollars, or null if none. Managers only. */
-export async function getMonthlyBudget(actor: Actor): Promise<number | null> {
+/** The monthly AI spend target in US dollars: the one set on the Settings page, else the default. Managers only. */
+export async function getMonthlyBudget(actor: Actor): Promise<number> {
   requireManager(actor, "The AI budget");
   const [row] = await db()<{ value: string }[]>`select value from app_settings where key = ${BUDGET_KEY}`;
   const value = row ? Number(row.value) : Number.NaN;
-  return Number.isFinite(value) && value > 0 ? value : null;
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_MONTHLY_BUDGET;
 }
 
 /**
- * Set the monthly AI spend target, or clear it with an empty value. Managers only.
+ * Set the monthly AI spend target, or go back to the default with an empty value. Managers only.
  * It's our own number for the AI Usage page: Gateway's reporting API doesn't return
  * the budget set in the Vercel dashboard, and this doesn't change that budget.
  */
-export async function setMonthlyBudget(actor: Actor, input: string): Promise<number | null> {
+export async function setMonthlyBudget(actor: Actor, input: string): Promise<number> {
   requireManager(actor, "The AI budget");
   if (actor.kind !== "user") throw new AccessDenied("The AI budget needs a signed-in manager.");
   const text = input.trim().replace(/^(US)?\$/i, "").replaceAll(",", "");
   if (!text) {
     await db()`delete from app_settings where key = ${BUDGET_KEY}`;
-    return null;
+    return DEFAULT_MONTHLY_BUDGET;
   }
   const value = Number(text);
   if (!Number.isFinite(value) || value <= 0 || value > 100_000) throw new Error("Enter the budget in US dollars, for example 100.");

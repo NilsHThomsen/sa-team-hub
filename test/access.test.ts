@@ -22,6 +22,7 @@ import {
   setPrimaryModel,
   getMonthlyBudget,
   setMonthlyBudget,
+  DEFAULT_MONTHLY_BUDGET,
   countPromotionCases,
   setSlackLink,
   setRetentionRisk,
@@ -259,11 +260,12 @@ describe("monthly AI budget", () => {
     await assert.rejects(setMonthlyBudget(manager, "-5"), /US dollars/);
   });
 
-  test("saves, reads back and clears", async () => {
+  test("starts at the US$100 default, saves, reads back and resets", async () => {
+    assert.equal(DEFAULT_MONTHLY_BUDGET, 100);
     assert.equal(await setMonthlyBudget(manager, "US$1,250"), 1250);
     assert.equal(await getMonthlyBudget(manager), 1250);
-    assert.equal(await setMonthlyBudget(manager, ""), null);
-    assert.equal(await getMonthlyBudget(manager), null);
+    assert.equal(await setMonthlyBudget(manager, ""), 100);
+    assert.equal(await getMonthlyBudget(manager), 100);
   });
 
   test("promotion case counts are for managers only", async () => {
