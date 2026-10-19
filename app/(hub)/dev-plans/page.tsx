@@ -1,3 +1,6 @@
+import type { Viewer } from "@/agent/lib/session";
+import type { Actor } from "@/agent/lib/actor";
+import { cacheLife } from "next/cache";
 import { CAREER_GOALS } from "@/agent/lib/career-goals";
 import { type CareerGoalRow, type DevPlan, listCareerGoals, listDevPlans, listPeople } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
@@ -9,9 +12,20 @@ import { PageHeader, Pill, Section, Table, Td } from "../_ui";
 const NOT_SET = "Not set";
 
 export default async function DevPlansPage({ searchParams }: { readonly searchParams: SearchParams }) {
-  const { viewer, actor } = await requireActor();
+  // Sign-in check (and its redirect) stays outside the cache.
+  const [{ viewer, actor }, params] = await Promise.all([requireActor(), searchParams]);
+  return <DevPlansBody actor={actor} params={params} viewer={viewer} />;
+}
+
+// "use cache: private": the result is kept only in this person's browser, never in a
+// server cache, so personal data isn't shared. Back/forward and repeat visits within a
+// minute reuse it without a server round trip. Server Actions (revalidatePath, and
+// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+async function DevPlansBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
+  "use cache: private";
+  cacheLife({ stale: 60 });
   const manager = viewer.role === "manager";
-  const [allPlans, allGoals, people, selected] = await Promise.all([listDevPlans(actor), listCareerGoals(actor), listPeople(), selectedPeople(searchParams)]);
+  const [allPlans, allGoals, people, selected] = await Promise.all([listDevPlans(actor), listCareerGoals(actor), listPeople(), selectedPeople(Promise.resolve(params))]);
   const plans = byPeople(allPlans, selected, (p) => p.person_id);
   const goals = byPeople(allGoals, selected, (g) => g.person_id);
 

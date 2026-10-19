@@ -1,3 +1,6 @@
+import type { Viewer } from "@/agent/lib/session";
+import type { Actor } from "@/agent/lib/actor";
+import { cacheLife } from "next/cache";
 import Link from "next/link";
 import { listAchievements, listPeople, listSentShoutouts } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
@@ -6,8 +9,19 @@ import { PersonFilter } from "../_person-filter";
 import { PageHeader, Pill, Section, Table, Td } from "../_ui";
 
 export default async function AchievementsPage({ searchParams }: { readonly searchParams: SearchParams }) {
-  const { viewer, actor } = await requireActor();
-  const [all, people, selected, sent] = await Promise.all([listAchievements(actor, { days: 365 }), listPeople(), selectedPeople(searchParams), listSentShoutouts(actor)]);
+  // Sign-in check (and its redirect) stays outside the cache.
+  const [{ viewer, actor }, params] = await Promise.all([requireActor(), searchParams]);
+  return <AchievementsBody actor={actor} params={params} viewer={viewer} />;
+}
+
+// "use cache: private": the result is kept only in this person's browser, never in a
+// server cache, so personal data isn't shared. Back/forward and repeat visits within a
+// minute reuse it without a server round trip. Server Actions (revalidatePath, and
+// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+async function AchievementsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
+  "use cache: private";
+  cacheLife({ stale: 60 });
+  const [all, people, selected, sent] = await Promise.all([listAchievements(actor, { days: 365 }), listPeople(), selectedPeople(Promise.resolve(params)), listSentShoutouts(actor)]);
   const achievements = byPeople(all, selected, (a) => a.person_id);
 
   return (

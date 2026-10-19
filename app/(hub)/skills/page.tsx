@@ -1,3 +1,6 @@
+import type { Viewer } from "@/agent/lib/session";
+import type { Actor } from "@/agent/lib/actor";
+import { cacheLife } from "next/cache";
 import { listPeople, skillGaps, skillsMatrix } from "@/agent/lib/data";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
 import { requireActor } from "@/lib/viewer";
@@ -13,8 +16,19 @@ import { LEVEL_STYLE, SkillsByRow } from "./_skills-by-row";
 const LAYOUT_PARAM = "layout";
 
 export default async function SkillsPage({ searchParams }: { readonly searchParams: SearchParams }) {
-  const { viewer, actor } = await requireActor();
-  const [people, allSkills, gaps, selected, params] = await Promise.all([listPeople(), skillsMatrix(), skillGaps(actor), selectedPeople(searchParams), searchParams]);
+  // Sign-in check (and its redirect) stays outside the cache.
+  const [{ viewer, actor }, params] = await Promise.all([requireActor(), searchParams]);
+  return <SkillsBody actor={actor} params={params} viewer={viewer} />;
+}
+
+// "use cache: private": the result is kept only in this person's browser, never in a
+// server cache, so personal data isn't shared. Back/forward and repeat visits within a
+// minute reuse it without a server round trip. Server Actions (revalidatePath, and
+// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+async function SkillsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
+  "use cache: private";
+  cacheLife({ stale: 60 });
+  const [people, allSkills, gaps, selected] = await Promise.all([listPeople(), skillsMatrix(), skillGaps(actor), selectedPeople(Promise.resolve(params))]);
   const byPerson = params[LAYOUT_PARAM] === "by-person";
   const toggle = new URLSearchParams(Object.entries(params).flatMap(([k, v]) => (k === LAYOUT_PARAM || v === undefined ? [] : [[k, String(v)]])));
   if (!byPerson) toggle.set(LAYOUT_PARAM, "by-person");

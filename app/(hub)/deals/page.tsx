@@ -1,3 +1,6 @@
+import type { Viewer } from "@/agent/lib/session";
+import type { Actor } from "@/agent/lib/actor";
+import { cacheLife } from "next/cache";
 import { alignmentFlag, currentQuarter, DEAL_DELIVERABLES, type DealRow, dealCoverage, dealScore, DELIVERABLE_LABEL, LABEL, listPeople, summarizeDeals, topDeals } from "@/agent/lib/data";
 import { cn } from "@/lib/utils";
 import { byPeople, type SearchParams, selectedPeople } from "@/lib/people-filter";
@@ -43,8 +46,19 @@ function Score({ value }: { readonly value: number }) {
 }
 
 export default async function DealsPage({ searchParams }: { readonly searchParams: SearchParams }) {
-  const { viewer, actor } = await requireActor();
-  const [coverage, people, selected] = await Promise.all([dealCoverage(actor), listPeople(), selectedPeople(searchParams)]);
+  // Sign-in check (and its redirect) stays outside the cache.
+  const [{ viewer, actor }, params] = await Promise.all([requireActor(), searchParams]);
+  return <DealsBody actor={actor} params={params} viewer={viewer} />;
+}
+
+// "use cache: private": the result is kept only in this person's browser, never in a
+// server cache, so personal data isn't shared. Back/forward and repeat visits within a
+// minute reuse it without a server round trip. Server Actions (revalidatePath, and
+// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+async function DealsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
+  "use cache: private";
+  cacheLife({ stale: 60 });
+  const [coverage, people, selected] = await Promise.all([dealCoverage(actor), listPeople(), selectedPeople(Promise.resolve(params))]);
   const manager = viewer.role === "manager";
   // Filter by the covering SA. ICs already see only their own deals, so the filter is for managers.
   const deals = manager ? byPeople(coverage.deals, selected, (d) => d.sa_id) : coverage.deals;
