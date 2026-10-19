@@ -16,12 +16,13 @@ export default async function AchievementsPage({ searchParams }: { readonly sear
 }
 
 // "use cache: private": the result is kept only in this person's browser, never in a
-// server cache, so personal data isn't shared. Back/forward and repeat visits within a
-// minute reuse it without a server round trip. Server Actions (revalidatePath, and
-// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+// server cache, so personal data isn't shared. Back/forward and repeat visits within
+// five minutes reuse it without a server round trip (below 5 minutes the router fetches
+// again on every navigation). Server Actions (revalidatePath, and updateTag after each
+// chat turn) clear it; a reload always fetches fresh data.
 async function AchievementsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
   "use cache: private";
-  cacheLife({ stale: 60 });
+  cacheLife({ stale: 300 });
   const [all, people, selected, sent] = await Promise.all([listAchievements(actor, { days: 365 }), cachedPeople(), selectedPeople(Promise.resolve(params)), listSentShoutouts(actor)]);
   const achievements = byPeople(all, selected, (a) => a.person_id);
 

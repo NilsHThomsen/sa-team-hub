@@ -53,12 +53,13 @@ export default async function DealsPage({ searchParams }: { readonly searchParam
 }
 
 // "use cache: private": the result is kept only in this person's browser, never in a
-// server cache, so personal data isn't shared. Back/forward and repeat visits within a
-// minute reuse it without a server round trip. Server Actions (revalidatePath, and
-// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+// server cache, so personal data isn't shared. Back/forward and repeat visits within
+// five minutes reuse it without a server round trip (below 5 minutes the router fetches
+// again on every navigation). Server Actions (revalidatePath, and updateTag after each
+// chat turn) clear it; a reload always fetches fresh data.
 async function DealsBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
   "use cache: private";
-  cacheLife({ stale: 60 });
+  cacheLife({ stale: 300 });
   const [coverage, people, selected] = await Promise.all([dealCoverage(actor), cachedPeople(), selectedPeople(Promise.resolve(params))]);
   const manager = viewer.role === "manager";
   // Filter by the covering SA. ICs already see only their own deals, so the filter is for managers.

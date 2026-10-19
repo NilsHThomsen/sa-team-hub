@@ -46,12 +46,13 @@ export default async function HomePage({ searchParams }: { readonly searchParams
 }
 
 // "use cache: private": the result is kept only in this person's browser, never in a
-// server cache, so personal data isn't shared. Back/forward and repeat visits within a
-// minute reuse it without a server round trip. Server Actions (revalidatePath, and
-// updateTag after each chat turn) clear it; a reload always fetches fresh data.
+// server cache, so personal data isn't shared. Back/forward and repeat visits within
+// five minutes reuse it without a server round trip (below 5 minutes the router fetches
+// again on every navigation). Server Actions (revalidatePath, and updateTag after each
+// chat turn) clear it; a reload always fetches fresh data.
 async function HomeBody({ viewer, actor, params }: { readonly viewer: Viewer; readonly actor: Actor; readonly params: Awaited<SearchParams> }) {
   "use cache: private";
-  cacheLife({ stale: 60 });
+  cacheLife({ stale: 300 });
   const manager = isManager(actor);
 
   // Independent queries run in parallel.
