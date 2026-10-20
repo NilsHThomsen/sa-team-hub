@@ -23,13 +23,13 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
           <Link className="font-semibold tracking-tight" href="/">
             SA Team Hub
           </Link>
-          <Suspense fallback={<div aria-hidden className="h-5 w-72 animate-pulse rounded bg-muted" />}>
+          <Suspense fallback={<div aria-hidden className="order-last h-5 w-72 animate-pulse rounded bg-muted sm:order-none" />}>
             <ViewerNav />
           </Suspense>
           <div className="ml-auto flex items-center gap-3 text-sm">
             {/* The button is in the shell; its role-based prompts stream in (see _ask-agent.tsx). */}
             <AskAgent examples={roleExamples()} />
-            <Suspense fallback={<div aria-hidden className="h-5 w-32 animate-pulse rounded bg-muted" />}>
+            <Suspense fallback={<div aria-hidden className="hidden h-5 w-32 animate-pulse rounded bg-muted sm:block" />}>
               <ViewerName />
             </Suspense>
             {/* Same for everyone, so it is part of the prerendered shell. */}
@@ -73,7 +73,8 @@ async function ViewerNav() {
 async function ViewerName() {
   const { viewer } = await requireActor();
   return (
-    <span className="text-muted-foreground">
+    // Hidden on a phone to keep the header to one row; the name is on Home anyway.
+    <span className="hidden text-muted-foreground sm:inline">
       {viewer.name} · {viewer.role === "manager" ? "Manager" : "IC"}
     </span>
   );

@@ -47,8 +47,10 @@ function Box({ potential, performance, people }: { readonly potential: number; r
 /** The 9-box. Hover a name for the note behind the placement. */
 export function NineBox({ ratings, unrated }: { readonly ratings: readonly TalentRating[]; readonly unrated: readonly string[] }) {
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-[1.5rem_1fr_1fr_1fr_4.5rem] gap-x-2 gap-y-2">
+    // On a phone the grid keeps a readable minimum width and scrolls sideways,
+    // rather than squeezing names into boxes a few letters wide.
+    <div className="space-y-2 overflow-x-auto">
+      <div className="grid min-w-[34rem] grid-cols-[1.5rem_1fr_1fr_1fr_4.5rem] gap-x-2 gap-y-2">
         {/* Column headings */}
         <div />
         {PERFORMANCE.map((label) => (
