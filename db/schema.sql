@@ -238,3 +238,43 @@ create table if not exists shoutouts (
 -- after launch; replace the status check on databases created before it.
 alter table skills drop constraint if exists skills_status_check;
 alter table skills add constraint skills_status_check check (status in ('not_started', 'next_focus', 'in_progress', 'complete'));
+
+-- ---------- Library ----------
+-- Reference architectures and demo assets the team reuses. Same for everyone who
+-- is signed in, so the Library pages are prerendered and served from Vercel's CDN.
+-- Diagrams ship with the code (app/(hub)/library/_diagrams); asset files are in public/files.
+
+create table if not exists reference_architectures (
+  id            text primary key,           -- slug, e.g. 'incremental-migration'
+  title         text not null,
+  summary       text not null,              -- one line for the card
+  problem       text not null,
+  approach      text not null,
+  when_to_use   text not null,
+  watch_outs    text not null,
+  products      text[] not null default '{}',
+  author_id     text not null references people(id),
+  updated_at    timestamptz not null default now()
+);
+
+create table if not exists demo_assets (
+  id              text primary key,         -- slug
+  title           text not null,
+  kind            text not null check (kind in ('demo_script', 'playbook', 'cheat_sheet', 'diagram')),
+  description     text not null,
+  href            text not null,            -- '/files/<name>.pdf' or an external URL
+  architecture_id text references reference_architectures(id),
+  author_id       text not null references people(id),
+  updated_at      timestamptz not null default now()
+);
+
+-- Each time an architecture or asset is used on a deal. Reuse per contributor is
+-- an SA excellence measure (contribution to shared IP).
+create table if not exists library_uses (
+  item_id         text not null,            -- a reference_architectures or demo_assets id
+  deal_id         text not null references deals(id) on delete cascade,
+  used_by         text not null references people(id),
+  used_on         date not null default current_date,
+  idempotency_key text unique,
+  primary key (item_id, deal_id)
+);

@@ -16,7 +16,7 @@ export function NavLinks({ items }: { readonly items: readonly { href: string; l
     <nav className="-mx-4 order-last flex basis-[calc(100%+2rem)] gap-4 overflow-x-auto whitespace-nowrap px-4 pb-1 text-sm sm:order-none sm:mx-0 sm:basis-auto sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
       {items.map((item) => (
         <Link
-          className={cn("hover:text-foreground", pathname === item.href ? "font-medium text-foreground" : "text-muted-foreground")}
+          className={cn("hover:text-foreground", isActive(pathname, item.href) ? "font-medium text-foreground" : "text-muted-foreground")}
           href={`${item.href}${suffix}`}
           key={item.href}
         >
@@ -25,4 +25,9 @@ export function NavLinks({ items }: { readonly items: readonly { href: string; l
       ))}
     </nav>
   );
+}
+
+/** A tab is active on its own page and on pages under it, such as one Library architecture. */
+function isActive(pathname: string, href: string): boolean {
+  return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 }

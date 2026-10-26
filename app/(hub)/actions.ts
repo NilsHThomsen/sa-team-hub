@@ -48,7 +48,9 @@ export async function answerPromotionCase(id: number, approve: boolean): Promise
 export async function afterAgentTurn(): Promise<void> {
   await requireActor();
   updateTag("digest");
-  // The agent may also have added or edited a team member or a skill (lib/cached.ts).
+  // The agent may also have added or edited a team member or a skill (lib/cached.ts),
+  // or logged a Library reuse, which clears the prerendered Library pages too.
   updateTag("people");
   updateTag("skills");
+  updateTag("library");
 }

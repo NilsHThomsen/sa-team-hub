@@ -57,6 +57,7 @@ async function ViewerNav() {
     { href: "/skills", label: "Skills Matrix" },
     { href: "/dev-plans", label: "Dev Plans" },
     { href: "/deals", label: "Deal Coverage" },
+    { href: "/library", label: "Library" },
     // Hidden for ICs; the page and the data layer refuse them anyway.
     ...(viewer.role === "manager"
       ? [

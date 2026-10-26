@@ -13,6 +13,7 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 | Skills Matrix | Product skills, hyperscaler certifications and soft skills per person, and gaps against next quarter's needs | Find gaps, update a skill, set next quarter's needs (managers) | `skills_and_plans` (main can read gaps) | `find_skill_gaps`, `get_person_profile`, `update_skill`, `update_skill_need` |
 | Development Plans | Plans grouped by career goal, with next steps and overdue flags | Update a plan or career goal | `skills_and_plans` | `update_dev_plan`, `update_career_goal` |
 | Deal Coverage | Top 5 deals this quarter as a scorecard, SA coverage, stale next steps and overloaded SAs | Update next steps and the scorecard; create or reassign deals (managers) | `deals` (main can read coverage) | `review_deal_coverage`, `update_deal_next_step`, `update_deal_scorecard`, `manage_deal` |
+| Library | Reference architectures (diagram, approach, watch-outs) and demo assets (scripts, playbooks, cheat sheets), with where each was reused and the most reused contributor | Recommend what to reuse on a deal; log a reuse | Main | `find_library_items`, `record_library_use` |
 | Talent (managers only) | 9-box, retention risk, promotion cases, succession and warm bench | Update any of these; draft a promotion case and approve or decline it | `talent` | `get_talent_overview`, `update_talent_rating`, `update_retention_risk`, `draft_promotion_case`, `decide_promotion_case`, `update_succession`, `update_warm_bench`, `update_team_member` |
 | AI Usage (managers only) | AI spend by person, feature and model, with filters; prompt-cache share; this month against a budget, with a burn-down and a projected run-out date | | | |
 | Settings (managers only) | Choose the AI model, set the monthly AI budget (US$100 by default) and link Slack accounts | | | |
@@ -54,7 +55,10 @@ Cache Components is on (`next.config.ts`), so every page is a partial prerender:
 | AI Usage | `"use cache: private"`, 5 minutes, so going back and forth doesn't re-run the billed Gateway reports | Saving a budget, a reload |
 | Weekly digest | `"use cache: remote"` (Runtime Cache, one copy for all instances), hourly | `updateTag("digest")` after each chat turn |
 | Team roster, Skills Matrix, selected model | `"use cache: remote"` in `lib/cached.ts`: hourly, every 5 minutes, hourly | `updateTag` after each chat turn (roster, skills) or on saving the model |
+| Library and each reference architecture | Plain `"use cache"`: the data is part of the prerendered page, kept in the ISR cache and served from the CDN; hourly. Diagrams go through Image Optimization and asset files are static, so both come from the CDN too | `updateTag("library")` after each chat turn (a logged reuse) |
 | Talent (9-box, retention, succession) and Settings | Never cached | |
+
+The Library is the one area that reads nothing about the viewer, so its content is in the prerendered shell that comes from Vercel's CDN; only the header's tabs and name stream from the function. The sign-in check still runs on every request, because `proxy.ts` (Routing Middleware) runs before Vercel's cache. To see the CDN at work, request an asset twice with your session cookie (`curl -sI -b "<cookie>" https://<host>/files/caching-cheat-sheet.pdf`) and watch the `x-vercel-cache` header.
 
 Personal data is only ever cached in the person's own browser. Shared caches hold only what everyone may see. Agent tools read Postgres directly.
 

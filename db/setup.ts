@@ -315,6 +315,109 @@ async function seedCareerGoals() {
   }
 }
 
+// ---------- Library ----------
+// Reference architectures and demo assets, written by the SAs whose achievements
+// mention them (Aiko's agent architecture, Sofia's migration playbook...).
+const architectures = [
+  {
+    id: "incremental-migration",
+    title: "Incremental migration from a monolith",
+    summary: "Vercel in front of the whole domain on day one; journeys move across one at a time.",
+    problem: "A monolith serves server-rendered templates with some React on top. A big-bang rewrite is too risky, and the business can't freeze features while it happens.",
+    approach:
+      "Point the production domain at Vercel first. A fallback rewrite sends every path the new app doesn't serve yet to the legacy origin, so customers see one site throughout. " +
+      "Move one journey at a time, highest value first, each as its own microfrontend that its team ships independently, with a shared design system in Turborepo. " +
+      "Global Config holds a kill switch per path, so going back to the legacy page is a dashboard change rather than a deploy, and Rolling Releases puts each journey in front of 5% of traffic before it goes to everyone.",
+    when_to_use: "Several teams, a migration measured in quarters, and journeys with clear URL boundaries.",
+    watch_outs:
+      "Sessions don't cross domains, so move them to a shared store before the first journey goes live. Rewrites are limited to 1,024 routes per deployment; use Routing Middleware beyond that. Keep URLs, canonicals and redirects identical so search rankings don't move.",
+    products: ["Next.js", "Microfrontends", "Rewrites", "Global Config", "Rolling Releases", "Skew Protection"],
+    author_id: "sofia-rossi",
+  },
+  {
+    id: "peak-traffic-booking",
+    title: "Booking and checkout at peak demand",
+    summary: "Cache everything that's the same for everyone; protect and scale the parts that aren't.",
+    problem: "Traffic spikes at known moments, such as a sale or check-in opening, slow booking down and overload the database and partner APIs. Bots scrape fares and hold inventory.",
+    approach:
+      "Content pages (destinations, offers, products) use ISR: served from the CDN and purged by tag when the CMS publishes. " +
+      "Search and fares are an API cached at the CDN for a few seconds with stale-while-revalidate, and its calls to the inventory system sit in the Runtime Cache. " +
+      "Booking and payment are never cached: Fluid compute scales them and reuses database connections, and BotID plus WAF rate limits keep bots out. Changes ship behind Rolling Releases and are promoted on conversion.",
+    when_to_use: "Predictable spikes, read-heavy search in front of a slow or rate-limited backend, and bot pressure on high-value routes.",
+    watch_outs:
+      "Never cache a response that sets a cookie or varies by user. Load test with the real spike shape before the event, not after. Size the database pool for Fluid compute's concurrency.",
+    products: ["ISR", "CDN cache", "Runtime Cache", "Fluid compute", "BotID", "WAF", "Rolling Releases"],
+    author_id: "daniel-okafor",
+  },
+  {
+    id: "ai-service-agent",
+    title: "AI customer service agent",
+    summary: "Answers and actions on the customer's own bookings, with a person approving anything that moves money.",
+    problem: "Contact-centre volume spikes during disruption. Customers want to change a booking themselves, not just read an FAQ, and the business needs control over cost and risk.",
+    approach:
+      "A Next.js chat surface uses the AI SDK to stream answers and call tools against the customer's own bookings through existing APIs. " +
+      "AI Gateway routes to the primary model with a fallback provider and tags spend per feature. " +
+      "Anything that moves money, such as a refund or a paid rebooking, runs as a Workflow that waits for a staff approval and survives slow partner APIs. BotID guards the chat endpoint so bots can't run up inference cost.",
+    when_to_use: "High-volume, repeatable requests that already have an API behind them.",
+    watch_outs:
+      "Start with read-only answers, then add one action at a time. Measure deflection and handle time from day one. Keep a person in the loop for refunds until the numbers say otherwise.",
+    products: ["AI SDK", "AI Gateway", "Workflows", "BotID", "Observability"],
+    author_id: "aiko-tanaka",
+  },
+  {
+    id: "agentic-internal-tool",
+    title: "Internal tool with an agent (SA Team Hub)",
+    summary: "One data layer for a dashboard and an agent, cached by who may see what.",
+    problem: "The team's plan lives in spreadsheets that nobody keeps up to date.",
+    approach:
+      "A Next.js dashboard and an eve agent share one data layer, with access rules next to the SQL. " +
+      "Shared data sits in the Runtime Cache, personal pages are cached only in the viewer's browser, and published content (this Library) is prerendered and served from the CDN behind the sign-in proxy. " +
+      "Long-running steps such as promotion cases run as Workflows, and AI Gateway tracks spend per person and feature.",
+    when_to_use: "Internal tools where people would rather ask than fill in forms.",
+    watch_outs: "Check access in the data layer, not only the UI. Never put personal data in a shared cache.",
+    products: ["Next.js Cache Components", "eve", "AI SDK", "AI Gateway", "Workflows", "Routing Middleware"],
+    author_id: MANAGER,
+  },
+];
+
+const demoAssets = [
+  { id: "migration-pov-playbook", title: "Migration POV playbook", kind: "playbook", description: "Three-week proof of value: scope, success criteria, timeline and watch-outs.", href: "/files/migration-pov-playbook.pdf", architecture_id: "incremental-migration", author_id: "sofia-rossi" },
+  { id: "peak-load-demo-script", title: "Peak load demo script", kind: "demo_script", description: "Ten minutes: cache MISS then HIT, a 300 ms purge, a load test, bots blocked, a 5% rollout.", href: "/files/peak-load-demo-script.pdf", architecture_id: "peak-traffic-booking", author_id: "daniel-okafor" },
+  { id: "ai-agent-demo-script", title: "AI service agent demo script", kind: "demo_script", description: "Twelve minutes: answers, a rebooking, a refund waiting for approval, and spend in AI Gateway.", href: "/files/ai-agent-demo-script.pdf", architecture_id: "ai-service-agent", author_id: "aiko-tanaka" },
+  { id: "caching-cheat-sheet", title: "Caching on Vercel cheat sheet", kind: "cheat_sheet", description: "The four caching layers on one page, and when to use each.", href: "/files/caching-cheat-sheet.pdf", architecture_id: "peak-traffic-booking", author_id: "priya-nair" },
+  { id: "hub-architecture", title: "SA Team Hub architecture", kind: "diagram", description: "One-page architecture of this app.", href: "/files/sa-team-hub-architecture.pdf", architecture_id: "agentic-internal-tool", author_id: MANAGER },
+  { id: "hub-flows", title: "SA Team Hub request flows", kind: "diagram", description: "Numbered flows for sign-in, chat, caching and the Friday digest.", href: "/files/sa-team-hub-flows.pdf", architecture_id: "agentic-internal-tool", author_id: MANAGER },
+] as const;
+
+// [item, deal, used by, days ago]: where the team has already reused each item.
+const libraryUses = [
+  ["incremental-migration", "D-1002", "sofia-rossi", -40],
+  ["incremental-migration", "D-1001", "priya-nair", -25],
+  ["migration-pov-playbook", "D-1002", "sofia-rossi", -38],
+  ["migration-pov-playbook", "D-1001", "priya-nair", -24],
+  ["peak-traffic-booking", "D-1005", "daniel-okafor", -30],
+  ["peak-traffic-booking", "D-1002", "sofia-rossi", -12],
+  ["peak-load-demo-script", "D-1005", "daniel-okafor", -28],
+  ["caching-cheat-sheet", "D-1001", "priya-nair", -20],
+  ["caching-cheat-sheet", "D-1010", "jack-wilson", -9],
+  ["ai-service-agent", "D-1004", "jack-wilson", -6],
+  ["ai-service-agent", "D-1009", "hannah-kim", -8],
+  ["ai-service-agent", "D-1014", "priya-nair", -15],
+  ["ai-service-agent", "D-1015", "aiko-tanaka", -10],
+  ["ai-agent-demo-script", "D-1009", "hannah-kim", -11],
+  ["ai-agent-demo-script", "D-1015", "aiko-tanaka", -9],
+] as const;
+
+// Runs on every setup: fills the Library when it is empty, so already-seeded databases get it too.
+async function seedLibrary() {
+  const [{ count }] = await sql`select count(*)::int as count from reference_architectures`;
+  if (count > 0) return;
+  await sql`insert into reference_architectures ${sql(architectures)}`;
+  await sql`insert into demo_assets ${sql(demoAssets.map((a) => ({ ...a })))}`;
+  await sql`insert into library_uses ${sql(libraryUses.map(([itemId, dealId, usedBy, offset]) => ({ item_id: itemId, deal_id: dealId, used_by: usedBy, used_on: day(offset) })))}`;
+  console.log("Added the sample Library.");
+}
+
 async function main() {
   await root.begin(async (tx) => {
     sql = tx as unknown as typeof root;
@@ -335,7 +438,7 @@ async function seed() {
   let slackIds: { id: string; slack_user_id: string }[] = [];
   if (reset || incomplete) {
     slackIds = await sql`select id, slack_user_id from people where slack_user_id is not null`;
-    await sql`truncate talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
@@ -357,6 +460,7 @@ async function seed() {
         await seedTalentRatings();
         console.log("Added sample 9-box ratings.");
       }
+      await seedLibrary();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
@@ -387,6 +491,7 @@ async function seed() {
   await sql`insert into succession ${sql(succession.map(([roleName, candidate, kind, personId, readiness, pros, cons]) => ({ role_name: roleName, candidate, kind, person_id: personId, readiness, pros, cons })))}`;
   await sql`insert into candidates ${sql(candidates.map(([name, currentJob, focus, stage, contact, source, notes]) => ({ name, current_job: currentJob, focus, stage, last_contact: day(contact), source, notes })))}`;
 
+  await seedLibrary();
   console.log(`Done: seeded ${people.length} people and their demo data.`);
 }
 

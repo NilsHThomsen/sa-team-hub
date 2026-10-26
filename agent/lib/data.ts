@@ -840,3 +840,110 @@ export async function saveDigest(actor: Actor, body: string): Promise<{ week_of:
 export async function setDigestSlackTs(weekOf: string, slackTs: string): Promise<void> {
   await db()`update digests set slack_ts = ${slackTs} where week_of = ${weekOf}::date`;
 }
+
+// ---------- Library ----------
+// Reference architectures and demo assets are team-visible, like the Skills Matrix:
+// every signed-in person sees the same Library. Anyone can log a reuse on a deal they
+// cover; managers on any deal.
+
+export const ASSET_KINDS = ["demo_script", "playbook", "cheat_sheet", "diagram"] as const;
+export type AssetKind = (typeof ASSET_KINDS)[number];
+export const ASSET_KIND_LABEL: Record<AssetKind, string> = { demo_script: "Demo script", playbook: "Playbook", cheat_sheet: "Cheat sheet", diagram: "Diagram" };
+
+export interface LibraryUse {
+  deal_id: string;
+  account: string;
+  used_by: string;
+  used_on: string;
+}
+
+export interface ReferenceArchitecture {
+  id: string;
+  title: string;
+  summary: string;
+  problem: string;
+  approach: string;
+  when_to_use: string;
+  watch_outs: string;
+  products: string[];
+  author_id: string;
+  author: string;
+  updated_on: string;
+  uses: LibraryUse[];
+}
+
+export interface DemoAsset {
+  id: string;
+  title: string;
+  kind: AssetKind;
+  description: string;
+  href: string;
+  architecture_id: string | null;
+  author_id: string;
+  author: string;
+  uses: LibraryUse[];
+}
+
+async function libraryUses(): Promise<Map<string, LibraryUse[]>> {
+  const rows = await db()<(LibraryUse & { item_id: string })[]>`
+    select u.item_id, u.deal_id, d.account, p.name as used_by, to_char(u.used_on, 'YYYY-MM-DD') as used_on
+    from library_uses u join deals d on d.id = u.deal_id join people p on p.id = u.used_by
+    order by u.used_on desc`;
+  const byItem = new Map<string, LibraryUse[]>();
+  for (const { item_id, ...use } of rows) byItem.set(item_id, [...(byItem.get(item_id) ?? []), use]);
+  return byItem;
+}
+
+/** Every reference architecture and demo asset, with where each has been used. */
+export async function listLibrary(): Promise<{ architectures: ReferenceArchitecture[]; assets: DemoAsset[] }> {
+  const [architectures, assets, uses] = await Promise.all([
+    db()<Omit<ReferenceArchitecture, "uses">[]>`
+      select r.id, r.title, r.summary, r.problem, r.approach, r.when_to_use, r.watch_outs, r.products,
+             r.author_id, p.name as author, to_char(r.updated_at, 'YYYY-MM-DD') as updated_on
+      from reference_architectures r join people p on p.id = r.author_id order by r.title`,
+    db()<Omit<DemoAsset, "uses">[]>`
+      select a.id, a.title, a.kind, a.description, a.href, a.architecture_id, a.author_id, p.name as author
+      from demo_assets a join people p on p.id = a.author_id order by a.title`,
+    libraryUses(),
+  ]);
+  return {
+    architectures: architectures.map((a) => ({ ...a, uses: uses.get(a.id) ?? [] })),
+    assets: assets.map((a) => ({ ...a, uses: uses.get(a.id) ?? [] })),
+  };
+}
+
+/** Finds an architecture or asset by id or by (part of) its title. */
+export async function findLibraryItem(query: string): Promise<{ id: string; title: string; kind: "architecture" | AssetKind } | null> {
+  const rows = await db()<{ id: string; title: string; kind: "architecture" | AssetKind }[]>`
+    select id, title, 'architecture' as kind from reference_architectures where id = ${query} or title ilike ${"%" + query + "%"}
+    union all
+    select id, title, kind from demo_assets where id = ${query} or title ilike ${"%" + query + "%"}
+    order by title`;
+  const exact = rows.find((r) => r.id === query || r.title.toLowerCase() === query.toLowerCase());
+  if (exact) return exact;
+  if (rows.length > 1) throw new Error(`"${query}" matches ${rows.map((r) => r.title).join(", ")}. Which one?`);
+  return rows[0] ?? null;
+}
+
+/**
+ * Logs that an architecture or asset was used on a deal. ICs log it on deals they
+ * cover; managers on any deal. Logging the same item on the same deal again is a no-op.
+ */
+export async function recordLibraryUse(
+  actor: Actor,
+  input: { itemId: string; dealId: string },
+  idempotencyKey: string,
+): Promise<{ item_id: string; deal_id: string; account: string; duplicate: boolean }> {
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can log a reuse.");
+  const [deal] = await db()<{ id: string; account: string; sa_id: string | null }[]>`select id, account, sa_id from deals where id = ${input.dealId}`;
+  if (!deal) throw new Error(`No deal with id "${input.dealId}".`);
+  if (actor.role === "ic" && deal.sa_id !== actor.personId) {
+    throw new AccessDenied(`You can only log reuse on deals you cover. Ask the SA on ${deal.account} or your manager.`);
+  }
+  const inserted = await db()`
+    insert into library_uses (item_id, deal_id, used_by, idempotency_key)
+    values (${input.itemId}, ${deal.id}, ${actor.personId}, ${idempotencyKey})
+    on conflict do nothing
+    returning item_id`;
+  return { item_id: input.itemId, deal_id: deal.id, account: deal.account, duplicate: inserted.length === 0 };
+}
