@@ -49,8 +49,10 @@ export async function afterAgentTurn(): Promise<void> {
   await requireActor();
   updateTag("digest");
   // The agent may also have added or edited a team member or a skill (lib/cached.ts),
-  // or logged a Library reuse, which clears the prerendered Library pages too.
+  // logged a Library reuse or set a deal's competitor, which clears the prerendered
+  // Library and Compete pages too.
   updateTag("people");
   updateTag("skills");
   updateTag("library");
+  updateTag("compete");
 }

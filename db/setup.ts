@@ -418,6 +418,149 @@ async function seedLibrary() {
   console.log("Added the sample Library.");
 }
 
+// ---------- Compete ----------
+// Battlecards for the three competitors Vercel publishes the most comparisons against
+// (or, for AWS, the one customers default to). Facts come from each competitor's own
+// docs and pricing pages; claims from Vercel's comparison guides are labelled as such.
+// Reviewed 26 Oct 2026: re-check the sources before relying on a number.
+const battlecards = [
+  {
+    id: "netlify",
+    competitor: "Netlify",
+    positioning: "Closest to us on developer experience, with broad Next.js support. Win on running Next.js where it's built, on long AI work, and on the platform around it.",
+    they_win: [
+      "Simple pricing: Pro is $20 a month on credits that cover deploys, compute, bandwidth, requests and forms.",
+      "Extras teams like: built-in forms, a database branch per preview, Azure DevOps and self-hosted Git, and Agent Runners that run Claude Code, Codex or Gemini from the dashboard.",
+      "Often already hosts the marketing or content site, so it's the incumbent.",
+      "Its OpenNext-based adapter lists App Router, streaming, ISR and Cache Components as supported.",
+    ],
+    we_win: [
+      "Native, not adapted: Netlify translates the Next.js build with an adapter, and new features land on Vercel first. Netlify's adapter for the new Next.js Adapter API is still in development.",
+      "Long AI and booking work: Netlify caps synchronous functions at 60 seconds (Vercel's guide); Vercel allows up to 800 seconds on Pro and Enterprise, and Fluid compute bills CPU only while code runs, not while it waits on a model.",
+      "Middleware runs on Netlify's Deno Edge Functions with a 50 ms CPU limit (Vercel's guide), and Netlify's docs say headers and redirects run after middleware, unlike standard Next.js.",
+      "Cache purges reach every region in about 300 ms on Vercel; Vercel's guide puts Netlify at a few seconds.",
+      "AI Gateway is generally available with provider fallbacks and spend per feature; Netlify's AI Gateway is labelled beta. Workflow, Queues and Cron cover background work.",
+    ],
+    questions: [
+      "Do any routes run long, such as AI answers, searches across partners or report generation?",
+      "Which Next.js features do you want in the next year, and how soon after they ship?",
+      "Is this decision about the marketing site, or about booking and check-in?",
+      "Do any rewrites point at files in public, or rely on headers set before middleware?",
+    ],
+    objections: [
+      { objection: "Netlify supports Next.js fully now.", answer: "It supports most of it, and it's fair to say so. The difference is the adapter in between and the timing. Ask for their end-to-end test report on your Next.js version, and compare both on a POV with your own app." },
+      { objection: "We already use Netlify for the marketing site.", answer: "Keep it. Start with the journey that hurts at peak, behind the same domain with a rewrite, and decide the rest on the numbers." },
+      { objection: "Netlify Pro is a flat $20 with unlimited members.", answer: "True, and good for small teams. At enterprise scale both are negotiated, so compare the workload: requests and compute at peak, plus time spent working around gaps." },
+    ],
+    proof: ["incremental-migration", "migration-pov-playbook", "ai-service-agent", "caching-cheat-sheet"],
+    sources: [
+      { label: "Netlify: Next.js on Netlify", url: "https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/" },
+      { label: "Netlify: the Next.js Adapter API", url: "https://www.netlify.com/blog/the-next-js-adapter-api-just-shipped-here-s-what-comes-next/" },
+      { label: "Netlify: credit-based pricing", url: "https://www.netlify.com/blog/new-pricing-credits/" },
+      { label: "Netlify: Agent Runners and AI Gateway (beta)", url: "https://www.netlify.com/changelog/new-ai-workflows-agent-runners-and-ai-gateway-beta/" },
+      { label: "Vercel's guide: Next.js on Vercel vs Netlify", url: "https://vercel.com/kb/guide/nextjs-on-vercel-vs-netlify" },
+    ],
+    owner_id: "sofia-rossi",
+  },
+  {
+    id: "cloudflare",
+    competitor: "Cloudflare",
+    positioning: "The network and security heavyweight, now going after Next.js apps with vinext. Win on running Next.js fully with nothing to assemble; don't pick a fight on network size.",
+    they_win: [
+      "Network scale: 330+ cities in 100+ countries, and more capacity to absorb the largest DDoS attacks (Vercel's own WAF guide says so).",
+      "Security depth: numeric bot scores, the full OWASP Core Rule Set with paranoia levels, leaked-credential checks, account-wide policies, and protection for any origin.",
+      "Price at volume: Workers Paid is $5 a month with 10 million requests, and R2 has no egress fees.",
+      "Workers run in every location by default, on fast-starting isolates.",
+    ],
+    we_win: [
+      "All of Next.js: Cloudflare's OpenNext adapter doesn't support Node.js middleware, and lists PPR and \"use cache\" as experimental. vinext is experimental, and Cloudflare says it isn't battle-tested at scale.",
+      "Nothing to assemble: on Cloudflare you build the Next.js cache from R2, Durable Objects and D1. On Vercel, ISR and the CDN work with no configuration and purge globally in about 300 ms.",
+      "Room to run: up to 4 GB of memory and 800 seconds per function on Vercel, against 128 MB per isolate and a 10 MB bundle on Workers Paid (Vercel's guide).",
+      "A framework-aware firewall: rules target routes like /blog/[slug], reach every region in under 300 ms, and live in code with the app.",
+      "One platform: no second CDN in front of another host, and no extra hop.",
+    ],
+    questions: [
+      "Does your app use Node.js middleware, Cache Components or long-running routes?",
+      "Who will own the cache wiring across R2, Durable Objects and D1, and its upgrades?",
+      "How much memory do your heaviest routes need, such as image or PDF work and AI calls?",
+      "Is Cloudflare already proxying the site? That's a second CDN hop in front of any host, so plan where the WAF rules live.",
+    ],
+    objections: [
+      { objection: "Cloudflare's network is bigger.", answer: "It is. For an app, what matters is time to first byte from where the data lives, and how fast a change reaches users. Measure both on a POV." },
+      { objection: "vinext runs our Next.js app on Workers.", answer: "It's experimental, and Cloudflare says it isn't battle-tested at scale. Ask what happens to your roadmap when Next.js ships something vinext hasn't rebuilt yet." },
+      { objection: "Workers is cheaper.", answer: "Often, per request. Add the engineering time to assemble caching and to fit within 128 MB and the bundle limit, then compare on your workload." },
+    ],
+    proof: ["peak-traffic-booking", "peak-load-demo-script", "caching-cheat-sheet"],
+    sources: [
+      { label: "Cloudflare: Next.js on Workers (OpenNext)", url: "https://developers.cloudflare.com/workers/framework-guides/web-apps/opennext/" },
+      { label: "IT Brief: Cloudflare unveils vinext (Feb 2026)", url: "https://itbrief.com.au/story/cloudflare-unveils-vinext-a-vite-based-next-js-rival" },
+      { label: "Vercel's guide: Next.js on Vercel vs Cloudflare", url: "https://vercel.com/kb/guide/next-js-on-vercel-vs-cloudflare" },
+      { label: "Vercel's guide: Vercel WAF vs Cloudflare WAF", url: "https://vercel.com/kb/guide/vercel-waf-vs-cloudflare-waf" },
+    ],
+    owner_id: "jack-wilson",
+  },
+  {
+    id: "aws",
+    competitor: "AWS (Amplify, or build it yourself)",
+    positioning: "The default when a customer is all-in on AWS. Don't fight AWS: keep their data and APIs there, and win the front end on Next.js depth, streaming AI and speed at peak.",
+    they_win: [
+      "It's AWS spend, on the bill and through the security review they already have.",
+      "Amplify is cheap to start: 15 GB served and 500,000 SSR requests free each month, then $0.15 per GB and $0.30 per million requests.",
+      "Amplify Gen 2 puts auth, data and a Bedrock AI kit in the same TypeScript repo.",
+      "A platform team that already runs EKS, CloudFront and Lambda can host Next.js itself with OpenNext, in its own account.",
+    ],
+    we_win: [
+      "Next.js on day one: Amplify's docs cover Next.js 12 to 15. Vercel runs the current release, Cache Components included.",
+      "Streaming: Amplify doesn't support Next.js streaming, so an AI assistant's answer arrives all at once. On Vercel the AI SDK streams it token by token.",
+      "Instant updates: Amplify doesn't support on-demand ISR (revalidateTag, revalidatePath), so a fare or seat change waits for a timer. Vercel purges by tag globally in about 300 ms.",
+      "Amplify doesn't support edge middleware, and its middleware doesn't run on static assets or optimised images.",
+      "Building it yourself means owning upgrades, autoscaling, cache invalidation and CI/CD. Vercel bills active CPU, not idle nodes.",
+      "AI Gateway: any model provider with fallbacks and spend per feature, next to Workflow for durable steps.",
+    ],
+    questions: [
+      "Which journeys need streaming, such as an AI trip assistant or long search results?",
+      "When a fare or seat price changes, how quickly must every page show it?",
+      "Which Next.js version are you on, and how soon after a release do you want its features?",
+      "Who runs the platform today, and what would that team build if it didn't have to?",
+      "How do you roll back a bad release at peak, and how long does it take?",
+    ],
+    objections: [
+      { objection: "We're an AWS shop and don't add vendors.", answer: "Keep the data, APIs and Bedrock in AWS: Vercel is the front end in front of them. Vercel is on AWS Marketplace, so it can go on the AWS bill, and Secure Compute gives private connectivity to your VPC on Enterprise." },
+      { objection: "Amplify is cheaper.", answer: "Price the peak, not an average month: bookings lost while check-in is slow, plus engineers working around missing features. Then run a POV on your real spike." },
+      { objection: "We'll self-host Next.js with OpenNext.", answer: "It works, and then you own it: CDN rules, cache invalidation, image optimisation and an upgrade on every Next.js release. Ask who keeps it current in two years." },
+    ],
+    proof: ["peak-traffic-booking", "peak-load-demo-script", "ai-service-agent", "ai-agent-demo-script"],
+    sources: [
+      { label: "AWS: Amplify support for Next.js", url: "https://docs.aws.amazon.com/amplify/latest/userguide/ssr-amplify-support.html" },
+      { label: "AWS: Amplify pricing", url: "https://aws.amazon.com/amplify/pricing/" },
+      { label: "AWS Japan on Zenn: Next.js on AWS in 2026", url: "https://zenn.dev/aws_japan/articles/nextjs-on-aws-2026" },
+      { label: "AWS: Amplify AI kit for Bedrock", url: "https://aws.amazon.com/about-aws/whats-new/2024/11/aws-amplify-full-stack-ai-kit-amazon-bedrock" },
+      { label: "Vercel's guide: Vercel vs Kubernetes", url: "https://vercel.com/kb/guide/vercel-vs-kubernetes" },
+      { label: "Vercel joins AWS Marketplace", url: "https://vercel.com/blog/vercel-joins-aws-marketplace" },
+    ],
+    owner_id: "daniel-okafor",
+  },
+];
+
+// The main competitor on some deals: [deal, battlecard]. Brightside Energy is the closed win.
+const dealCompetitors = [
+  ["D-1005", "aws"],
+  ["D-1009", "aws"],
+  ["D-1002", "netlify"],
+  ["D-1008", "netlify"],
+  ["D-1004", "cloudflare"],
+  ["D-1010", "cloudflare"],
+] as const;
+
+// Runs on every setup, like seedLibrary: fills Compete when it is empty.
+async function seedCompete() {
+  const [{ count }] = await sql`select count(*)::int as count from battlecards`;
+  if (count > 0) return;
+  await sql`insert into battlecards ${sql(battlecards.map((c) => ({ ...c, objections: sql.json(c.objections), sources: sql.json(c.sources) })))}`;
+  for (const [dealId, competitor] of dealCompetitors) await sql`update deals set competitor = ${competitor} where id = ${dealId}`;
+  console.log("Added the sample battlecards.");
+}
+
 async function main() {
   await root.begin(async (tx) => {
     sql = tx as unknown as typeof root;
@@ -438,7 +581,7 @@ async function seed() {
   let slackIds: { id: string; slack_user_id: string }[] = [];
   if (reset || incomplete) {
     slackIds = await sql`select id, slack_user_id from people where slack_user_id is not null`;
-    await sql`truncate library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate battlecards, library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
@@ -461,6 +604,7 @@ async function seed() {
         console.log("Added sample 9-box ratings.");
       }
       await seedLibrary();
+      await seedCompete();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
@@ -492,6 +636,7 @@ async function seed() {
   await sql`insert into candidates ${sql(candidates.map(([name, currentJob, focus, stage, contact, source, notes]) => ({ name, current_job: currentJob, focus, stage, last_contact: day(contact), source, notes })))}`;
 
   await seedLibrary();
+  await seedCompete();
   console.log(`Done: seeded ${people.length} people and their demo data.`);
 }
 

@@ -1,13 +1,13 @@
 import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
-import { listLibrary, listPeople, skillsMatrix } from "@/agent/lib/data";
+import { listBattlecards, listLibrary, listPeople, skillsMatrix } from "@/agent/lib/data";
 import { primaryModel } from "@/agent/lib/models";
 
 // Team-wide reads that are the same for every viewer, kept in Vercel's Runtime
 // Cache ("use cache: remote": one shared copy across function instances, like the
 // digest). Pages use these; agent tools still read Postgres directly. Each has a
 // tag so a save can clear it straight away (updateTag only works in Server Actions):
-//   people, skills, library: afterAgentTurn in app/(hub)/actions.ts, after each chat turn
+//   people, skills, library, compete: afterAgentTurn in app/(hub)/actions.ts, after each chat turn
 //   settings:       savePrimaryModel in app/(hub)/settings/actions.ts
 // Changes made elsewhere (Slack, the eve CLI) show when the profile refreshes.
 
@@ -45,21 +45,37 @@ export async function cachedPrimaryModel() {
  * page, which Vercel keeps in the ISR cache and serves from the CDN. The sign-in check
  * runs in proxy.ts before the cache. A logged reuse clears it straight away (tag
  * "library"); otherwise it refreshes hourly in the background.
- * A build with no database, or one not yet set up for the Library, gets an empty Library.
  */
 export async function cachedLibrary() {
   "use cache";
   cacheLife("hours");
   cacheTag("library");
+  return orEmpty(listLibrary, { architectures: [], assets: [] });
+}
+
+/**
+ * The battlecards. Plain "use cache" like the Library: the same for everyone and
+ * prerendered onto the CDN. Competitor facts change slowly, so the profile is "days";
+ * a competitor set on a deal through the agent clears it (tag "compete").
+ */
+export async function cachedBattlecards() {
+  "use cache";
+  cacheLife("days");
+  cacheTag("compete");
+  return orEmpty(listBattlecards, []);
+}
+
+/** A build with no database, or one not yet set up for these tables, gets empty content. */
+async function orEmpty<T>(read: () => Promise<T>, empty: T): Promise<T> {
   // Same check as db/setup.ts: a pulled env file can hold a hidden placeholder, not a URL.
   const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
-  if (!url?.startsWith("postgres")) return { architectures: [], assets: [] };
+  if (!url?.startsWith("postgres")) return empty;
   try {
-    return await listLibrary();
+    return await read();
   } catch (err) {
-    // A database that db/setup.ts hasn't migrated yet has no Library tables (42P01).
+    // A database that db/setup.ts hasn't migrated yet is missing the table (42P01).
     // On Vercel, setup runs before every build, so this only happens locally.
-    if ((err as { code?: string }).code === "42P01") return { architectures: [], assets: [] };
+    if ((err as { code?: string }).code === "42P01") return empty;
     throw err;
   }
 }

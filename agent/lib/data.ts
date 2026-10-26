@@ -947,3 +947,59 @@ export async function recordLibraryUse(
     returning item_id`;
   return { item_id: input.itemId, deal_id: deal.id, account: deal.account, duplicate: inserted.length === 0 };
 }
+
+// ---------- Compete ----------
+// Battlecards are team-visible, like the Library. They carry deal counts, not deal
+// names, because SAs only see their own deals on Deal Coverage. An SA sets the main
+// competitor on a deal they cover; managers on any deal.
+
+export interface Battlecard {
+  id: string;
+  competitor: string;
+  positioning: string;
+  they_win: string[];
+  we_win: string[];
+  questions: string[];
+  objections: { objection: string; answer: string }[];
+  proof: string[];
+  sources: { label: string; url: string }[];
+  owner_id: string;
+  owner: string;
+  reviewed_on: string;
+  open_deals: number;
+  won_deals: number;
+}
+
+/** Every battlecard, with how many open and won deals it has come up on. */
+export async function listBattlecards(): Promise<Battlecard[]> {
+  return db()<Battlecard[]>`
+    select b.id, b.competitor, b.positioning, b.they_win, b.we_win, b.questions, b.objections, b.proof, b.sources,
+           b.owner_id, p.name as owner, to_char(b.reviewed_on, 'YYYY-MM-DD') as reviewed_on,
+           (select count(*)::int from deals d where d.competitor = b.id and d.stage < 5) as open_deals,
+           (select count(*)::int from deals d where d.competitor = b.id and d.forecast = 'closed') as won_deals
+    from battlecards b join people p on p.id = b.owner_id
+    order by b.competitor`;
+}
+
+/** Finds a battlecard by id or by (part of) the competitor's name, e.g. "amplify". */
+export async function findBattlecard(query: string): Promise<{ id: string; competitor: string } | null> {
+  const rows = await db()<{ id: string; competitor: string }[]>`
+    select id, competitor from battlecards where id = ${query.toLowerCase()} or competitor ilike ${"%" + query + "%"} order by competitor`;
+  if (rows.length > 1) throw new Error(`"${query}" matches ${rows.map((r) => r.competitor).join(", ")}. Which one?`);
+  return rows[0] ?? null;
+}
+
+/** Sets (or clears, with null) the main competitor on a deal. */
+export async function setDealCompetitor(
+  actor: Actor,
+  input: { dealId: string; competitorId: string | null },
+): Promise<{ deal_id: string; account: string; competitor: string | null }> {
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can set a deal's competitor.");
+  const [deal] = await db()<{ id: string; account: string; sa_id: string | null }[]>`select id, account, sa_id from deals where id = ${input.dealId}`;
+  if (!deal) throw new Error(`No deal with id "${input.dealId}".`);
+  if (actor.role === "ic" && deal.sa_id !== actor.personId) {
+    throw new AccessDenied(`You can only set the competitor on deals you cover. Ask the SA on ${deal.account} or your manager.`);
+  }
+  await db()`update deals set competitor = ${input.competitorId} where id = ${deal.id}`;
+  return { deal_id: deal.id, account: deal.account, competitor: input.competitorId };
+}

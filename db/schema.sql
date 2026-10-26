@@ -278,3 +278,25 @@ create table if not exists library_uses (
   idempotency_key text unique,
   primary key (item_id, deal_id)
 );
+
+-- ---------- Compete ----------
+-- One battlecard per main competitor. Same for everyone who is signed in, like the
+-- Library, so the Compete pages are prerendered and served from Vercel's CDN.
+
+create table if not exists battlecards (
+  id           text primary key,            -- slug, e.g. 'netlify'
+  competitor   text not null,
+  positioning  text not null,               -- one line for the card
+  they_win     text[] not null,             -- where they are genuinely stronger
+  we_win       text[] not null,
+  questions    text[] not null,             -- discovery questions that surface the gaps
+  objections   jsonb not null default '[]', -- [{ "objection": "...", "answer": "..." }]
+  proof        text[] not null default '{}',-- Library ids to demo
+  sources      jsonb not null default '[]', -- [{ "label": "...", "url": "..." }]
+  owner_id     text not null references people(id),
+  reviewed_on  date not null default current_date
+);
+
+-- The main competitor on a deal, if there is one. Battlecards show counts only:
+-- SAs see only their own deals on Deal Coverage.
+alter table deals add column if not exists competitor text references battlecards(id);
