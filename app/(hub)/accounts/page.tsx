@@ -51,7 +51,7 @@ async function AccountsBody({ viewer, actor }: { readonly viewer: Viewer; readon
   const battlecard = (id: string | null) => battlecards.find((b) => b.id === id) ?? null;
 
   const sum = (rows: CustomerRow[]) => rows.reduce((n, c) => n + c.arr_usd, 0);
-  const in90 = customers.filter((c) => c.days_to_renewal <= 90);
+  const renewing = customers.filter((c) => c.days_to_renewal <= RENEWAL_WINDOW_DAYS);
   const atRisk = customers.filter((c) => c.health === "at_risk" || c.trend_change <= -10);
 
   return (
@@ -66,14 +66,14 @@ async function AccountsBody({ viewer, actor }: { readonly viewer: Viewer; readon
       />
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label={manager ? "ARR we cover" : "ARR you cover"} value={usd.format(sum(customers))} />
-        <Stat label={`Renewing in 90 days (${in90.length})`} value={usd.format(sum(in90))} />
+        <Stat label={`Renewing in the next 6 months (${renewing.length})`} value={usd.format(sum(renewing))} />
         <Stat label="ARR at risk" tone={atRisk.length > 0 ? "bad" : "good"} value={usd.format(sum(atRisk))} />
         <Stat label="Expansion spotted" tone="good" value={usd.format(upsells.reduce((n, u) => n + u.est_usd, 0))} />
       </div>
 
-      <Section note={`Next ${RENEWAL_WINDOW_DAYS} days, soonest first`} title="Renewals coming up">
+      <Section note="Next 6 months, soonest first" title="Renewals coming up">
         {renewals.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No renewals in the next {RENEWAL_WINDOW_DAYS} days.</p>
+          <p className="text-muted-foreground text-sm">No renewals in the next 6 months.</p>
         ) : (
           <Table head={["Account", "Renews", "ARR", "Health", "Usage vs commit", "Focus", "SA"]}>
             {renewals.map((c) => {

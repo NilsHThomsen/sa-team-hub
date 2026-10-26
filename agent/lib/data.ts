@@ -1017,7 +1017,8 @@ export type ChampionStatus = (typeof CHAMPION_STATUSES)[number];
 export const CHAMPION_LABEL: Record<ChampionStatus, string> = { user: "Power user", potential: "Potential champion", champion: "Champion" };
 export const HEALTH_LABEL = { healthy: "Healthy", watch: "Watch", at_risk: "At risk" } as const;
 
-export const RENEWAL_WINDOW_DAYS = 120;
+// Six months: enough time to change the outcome of a renewal, not just process it.
+export const RENEWAL_WINDOW_DAYS = 180;
 
 export interface PowerUser {
   id: number;
