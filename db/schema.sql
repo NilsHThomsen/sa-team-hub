@@ -300,3 +300,42 @@ create table if not exists battlecards (
 -- The main competitor on a deal, if there is one. Battlecards show counts only:
 -- SAs see only their own deals on Deal Coverage.
 alter table deals add column if not exists competitor text references battlecards(id);
+
+-- ---------- Accounts ----------
+-- Customers the team looks after after the sale: adoption, usage, renewals and the
+-- people who could become champions. Managers see every account; an SA sees the
+-- accounts they cover, like Deal Coverage.
+
+create table if not exists customers (
+  id           text primary key,            -- slug, e.g. 'bluewater-cruises'
+  account      text not null,
+  segment      text not null,
+  ae           text not null,
+  sa_id        text references people(id),
+  arr_usd      int not null,
+  commit_usd   int not null,                -- committed annual spend in the contract
+  renewal_on   date not null,
+  health       text not null check (health in ('healthy', 'watch', 'at_risk')),
+  health_note  text not null,
+  competitor   text references battlecards(id), -- a competitor circling the renewal, if any
+  usage_trend  int[] not null               -- monthly usage as % of the commit's run rate, oldest first
+);
+
+create table if not exists customer_products (
+  customer_id  text not null references customers(id) on delete cascade,
+  product      text not null,               -- one of ADOPTION_PRODUCTS in agent/lib/data.ts
+  status       text not null check (status in ('using', 'piloting', 'not_using')),
+  primary key (customer_id, product)
+);
+
+create table if not exists power_users (
+  id           serial primary key,
+  customer_id  text not null references customers(id) on delete cascade,
+  name         text not null,
+  title        text not null,
+  activity     text not null,               -- what makes them a power user
+  champion     text not null default 'user' check (champion in ('user', 'potential', 'champion')),
+  next_move    text,
+  updated_by   text references people(id),
+  updated_at   timestamptz not null default now()
+);

@@ -12,6 +12,7 @@
 
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
+import { ADOPTION_PRODUCTS } from "../agent/lib/adoption.ts";
 import { fiscalQuarter } from "../agent/lib/fiscal.ts"; // .ts: db:setup runs under plain node
 
 const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
@@ -561,6 +562,58 @@ async function seedCompete() {
   console.log("Added the sample battlecards.");
 }
 
+// ---------- Accounts ----------
+// Customers after the sale. Tasman Retail and Kiwi Freight also have open expansion
+// deals; Brightside Energy is the deal closed last month. Products not listed are not in use.
+// [id, account, segment, AE, SA, ARR, commit, renewal (days from today), health, note, competitor, usage trend %, using, piloting]
+const customers = [
+  ["bluewater-cruises", "Bluewater Cruises", "Strategic (Travel)", "Grace Liu", "daniel-okafor", 540000, 500000, 45, "watch",
+    "Usage is at 96% of commit after the peak booking season, so the renewal should right-size the commit before overage starts.", null,
+    [78, 82, 88, 91, 95, 96], ["Next.js", "Fluid compute", "CDN & ISR", "Firewall"], ["AI SDK"]],
+  ["northshore-bank", "Northshore Bank", "Enterprise (FSI)", "Grace Liu", "priya-nair", 610000, 650000, 80, "healthy",
+    "Steady growth. The AI assistant team calls models with the AI SDK but manages provider keys and spend themselves.", null,
+    [70, 72, 75, 77, 80, 83], ["Next.js", "Fluid compute", "CDN & ISR", "Firewall", "BotID", "Rolling Releases", "AI SDK"], []],
+  ["canopy-health", "Canopy Health", "Enterprise (Health)", "Anna Webb", "ravi-menon", 210000, 240000, 25, "at_risk",
+    "Usage is down a third since the platform lead who sponsored us left in August, and one product team moved back to its old hosting.", null,
+    [74, 71, 66, 58, 52, 49], ["Next.js", "Fluid compute", "CDN & ISR"], []],
+  ["tasman-retail", "Tasman Retail", "Enterprise (Retail)", "Marco Silva", "sofia-rossi", 380000, 360000, 150, "healthy",
+    "Phase 1 of the migration is live and usage is above commit; phase 2 is being scoped.", null,
+    [62, 70, 84, 97, 104, 108], ["Next.js", "Fluid compute", "CDN & ISR", "Microfrontends", "Firewall", "v0"], []],
+  ["kiwi-freight", "Kiwi Freight", "Enterprise", "Tama Ngata", "mei-chen", 120000, 120000, 100, "healthy",
+    "The AI Gateway pilot is going well; the open deal takes it to production.", null,
+    [55, 58, 61, 66, 70, 74], ["Next.js", "Fluid compute", "CDN & ISR", "AI SDK"], ["AI Gateway"]],
+  ["lyrebird-games", "Lyrebird Games", "Telco & Media", "Ben Harris", "jack-wilson", 260000, 300000, 60, "watch",
+    "Bandwidth-heavy game launches. Their platform team is pricing Cloudflare for asset delivery before the renewal.", "cloudflare",
+    [88, 93, 81, 79, 76, 72], ["Next.js", "Fluid compute", "CDN & ISR", "Firewall"], ["BotID"]],
+  ["brightside-energy", "Brightside Energy", "Commercial", "Liam Ford", "liam-oconnor", 95000, 95000, 330, "healthy",
+    "Signed last month and onboarding; the first site goes live this quarter.", null,
+    [0, 0, 0, 0, 18, 35], ["Next.js", "CDN & ISR"], ["v0"]],
+] as const;
+
+// [customer, name, title, what makes them a power user, champion status, suggested next move]
+const powerUsers = [
+  ["bluewater-cruises", "Mia Thompson", "Head of Digital", "Sponsors the platform and presented our peak-season results to her board.", "champion", "Ask her to be a reference for Coral Airlines and to speak at the APJ customer event."],
+  ["bluewater-cruises", "Raj Patel", "Lead Engineer", "Ran the peak-season load test himself and ships about 40 deploys a week.", "potential", "Walk him through BotID: he owns bot mitigation and the renewal is close."],
+  ["northshore-bank", "Olivia Chen", "Platform Lead", "Rolled Vercel out to six product teams and writes their internal guides.", "champion", "Reference call for Harbour Bank's InfoSec review."],
+  ["northshore-bank", "Ethan Brooks", "Staff Engineer", "Built their AI assistant on the AI SDK.", "potential", "Show him AI Gateway's spend by feature; he's the natural champion for it."],
+  ["canopy-health", "Sam Wright", "Frontend Lead", "Still deploys daily and asked for help with Core Web Vitals.", "potential", "Make Sam the new sponsor: an exec readout with their CTO before the renewal."],
+  ["tasman-retail", "Chloe Martin", "Engineering Manager", "Led phase 1 of the migration with no downtime.", "champion", "Case study on phase 1, and a reference for other retail migrations."],
+  ["tasman-retail", "Luca Bianchi", "Senior Engineer", "Built the shared design system across their microfrontends.", "user", null],
+  ["kiwi-freight", "Aroha Walker", "CTO", "Pushed for the AI Gateway pilot and reviews its spend every week.", "potential", "Invite her to the AI customer advisory board."],
+  ["lyrebird-games", "Kai Nakamura", "Head of Platform", "Owns hosting costs and is running the Cloudflare comparison.", "user", "Go through the Cloudflare battlecard with his own traffic numbers."],
+  ["brightside-energy", "Noah Evans", "Developer", "Built their first site with v0 and Next.js in two weeks.", "user", null],
+] as const;
+
+// Runs on every setup, like seedLibrary: fills Accounts when it is empty.
+async function seedAccounts() {
+  const [{ count }] = await sql`select count(*)::int as count from customers`;
+  if (count > 0) return;
+  await sql`insert into customers ${sql(customers.map(([id, account, segment, ae, saId, arr, commit, renewal, health, note, competitor, trend]) => ({ id, account, segment, ae, sa_id: saId, arr_usd: arr, commit_usd: commit, renewal_on: day(renewal), health, health_note: note, competitor, usage_trend: [...trend] })))}`;
+  await sql`insert into customer_products ${sql(customers.flatMap(([id, , , , , , , , , , , , using, piloting]) => ADOPTION_PRODUCTS.map((product) => ({ customer_id: id, product, status: (using as readonly string[]).includes(product) ? "using" : (piloting as readonly string[]).includes(product) ? "piloting" : "not_using" }))))}`;
+  await sql`insert into power_users ${sql(powerUsers.map(([customerId, name, title, activity, champion, next]) => ({ customer_id: customerId, name, title, activity, champion, next_move: next, updated_by: MANAGER })))}`;
+  console.log("Added the sample accounts.");
+}
+
 async function main() {
   await root.begin(async (tx) => {
     sql = tx as unknown as typeof root;
@@ -581,7 +634,7 @@ async function seed() {
   let slackIds: { id: string; slack_user_id: string }[] = [];
   if (reset || incomplete) {
     slackIds = await sql`select id, slack_user_id from people where slack_user_id is not null`;
-    await sql`truncate battlecards, library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate power_users, customer_products, customers, battlecards, library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
@@ -605,6 +658,7 @@ async function seed() {
       }
       await seedLibrary();
       await seedCompete();
+      await seedAccounts();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
@@ -637,6 +691,7 @@ async function seed() {
 
   await seedLibrary();
   await seedCompete();
+  await seedAccounts();
   console.log(`Done: seeded ${people.length} people and their demo data.`);
 }
 

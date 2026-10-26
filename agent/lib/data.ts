@@ -4,6 +4,7 @@ import { fiscalQuarter } from "./fiscal";
 import { type CareerGoal, isCareerGoal } from "./career-goals";
 import { DEFAULT_MODEL, isModelId, type ModelId } from "./models";
 import { skillLevelName } from "./skill-levels";
+import { ADOPTION_PRODUCTS, type AdoptionProduct, type AdoptionStatus } from "./adoption";
 
 // All reads and writes go through these functions, for the dashboard pages and
 // the agent's tools alike. Access rules live here, next to the SQL, so a new
@@ -1002,4 +1003,176 @@ export async function setDealCompetitor(
   }
   await db()`update deals set competitor = ${input.competitorId} where id = ${deal.id}`;
   return { deal_id: deal.id, account: deal.account, competitor: input.competitorId };
+}
+
+// ---------- Accounts ----------
+// Customers after the sale: adoption, usage, renewals, upsell and champions. Managers
+// see every account; an SA sees the accounts they cover, like Deal Coverage. The upsell
+// and workshop suggestions are plain rules below, so anyone can read why one appears.
+
+export { ADOPTION_PRODUCTS, type AdoptionProduct, type AdoptionStatus } from "./adoption";
+
+export const CHAMPION_STATUSES = ["user", "potential", "champion"] as const;
+export type ChampionStatus = (typeof CHAMPION_STATUSES)[number];
+export const CHAMPION_LABEL: Record<ChampionStatus, string> = { user: "Power user", potential: "Potential champion", champion: "Champion" };
+export const HEALTH_LABEL = { healthy: "Healthy", watch: "Watch", at_risk: "At risk" } as const;
+
+export const RENEWAL_WINDOW_DAYS = 120;
+
+export interface PowerUser {
+  id: number;
+  name: string;
+  title: string;
+  activity: string;
+  champion: ChampionStatus;
+  next_move: string | null;
+}
+
+export interface Upsell {
+  product: string;
+  why: string;
+  est_usd: number;
+  library: string | null; // a Library item that helps make the case
+}
+
+export interface CustomerRow {
+  id: string;
+  account: string;
+  segment: string;
+  ae: string;
+  sa_id: string | null;
+  sa_name: string | null;
+  arr_usd: number;
+  commit_usd: number;
+  renewal_on: string;
+  days_to_renewal: number;
+  health: keyof typeof HEALTH_LABEL;
+  health_note: string;
+  competitor: string | null;
+  usage_trend: number[];
+  products: Record<AdoptionProduct, AdoptionStatus>;
+  power_users: PowerUser[];
+  upsells: Upsell[];
+  /** Usage now against three months ago, in points of commit. */
+  trend_change: number;
+  /** For a renewal inside the window: save it, grow it, or just renew. */
+  focus: "save" | "grow" | "renew" | null;
+}
+
+// Rough sizing to rank opportunities, as a share of current ARR: for prioritising, not a quote.
+const UPSELL_RULES: { product: AdoptionProduct; share: number; library: string | null; why: string; applies: (has: (p: AdoptionProduct) => boolean, c: { arr_usd: number }) => boolean }[] = [
+  { product: "AI Gateway", share: 0.08, library: "ai-service-agent", why: "They call models with the AI SDK but manage provider keys, fallbacks and spend themselves.", applies: (has) => has("AI SDK") && !has("AI Gateway") },
+  { product: "Workflow", share: 0.05, library: "ai-service-agent", why: "AI features that take actions need durable steps and a person approving anything risky.", applies: (has) => has("AI SDK") && !has("Workflow") },
+  { product: "BotID", share: 0.04, library: "peak-traffic-booking", why: "They already run the Firewall; BotID stops scrapers and fake sign-ups on key routes.", applies: (has) => has("Firewall") && !has("BotID") },
+  { product: "Rolling Releases", share: 0.03, library: "peak-load-demo-script", why: "Ship risky changes to a small share of traffic first and promote on the numbers.", applies: (has) => has("CDN & ISR") && !has("Rolling Releases") },
+  { product: "Microfrontends", share: 0.1, library: "incremental-migration", why: "Several teams share one large app; splitting it lets each team ship on its own.", applies: (has, c) => c.arr_usd >= 400000 && !has("Microfrontends") },
+];
+
+/** Upsell ideas for one customer, biggest first. At-risk accounts get none: save them first. */
+export function upsellsFor(c: Pick<CustomerRow, "arr_usd" | "commit_usd" | "health" | "products" | "usage_trend">): Upsell[] {
+  if (c.health === "at_risk") return [];
+  const has = (p: AdoptionProduct) => c.products[p] === "using";
+  const ideas: Upsell[] = [];
+  for (const [product, status] of Object.entries(c.products)) {
+    if (status === "piloting") ideas.push({ product, why: `They're piloting ${product}: agree what success looks like and take it to production.`, est_usd: Math.round(c.arr_usd * 0.06), library: null });
+  }
+  for (const rule of UPSELL_RULES) {
+    if (c.products[rule.product] === "piloting" || !rule.applies(has, c)) continue;
+    ideas.push({ product: rule.product, why: rule.why, est_usd: Math.round(c.arr_usd * rule.share), library: rule.library });
+  }
+  // At 90% of commit or more, the next contract should carry a bigger commit (10% headroom).
+  const latest = c.usage_trend.at(-1) ?? 0;
+  if (latest >= 90) {
+    ideas.push({ product: "Bigger commit", why: `Usage is at ${latest}% of commit; set the next commit before overage starts.`, est_usd: Math.max(0, Math.round((c.commit_usd * latest * 1.1) / 100 - c.commit_usd)), library: null });
+  }
+  return ideas.sort((a, b) => b.est_usd - a.est_usd);
+}
+
+function renewalFocus(c: Pick<CustomerRow, "days_to_renewal" | "health" | "trend_change" | "upsells">): CustomerRow["focus"] {
+  if (c.days_to_renewal > RENEWAL_WINDOW_DAYS) return null;
+  if (c.health === "at_risk" || c.trend_change <= -10) return "save";
+  return c.upsells.length > 0 ? "grow" : "renew";
+}
+
+/** Every customer the person may see, with adoption, power users, upsells and renewal focus. */
+export async function accountOverview(actor: Actor): Promise<CustomerRow[]> {
+  const ic = actor.kind === "user" && actor.role === "ic";
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can see accounts.");
+  const rows = await db()<Omit<CustomerRow, "products" | "power_users" | "upsells" | "trend_change" | "focus">[]>`
+    select c.id, c.account, c.segment, c.ae, c.sa_id, p.name as sa_name, c.arr_usd, c.commit_usd,
+           to_char(c.renewal_on, 'YYYY-MM-DD') as renewal_on, (c.renewal_on - current_date)::int as days_to_renewal,
+           c.health, c.health_note, c.competitor, c.usage_trend
+    from customers c left join people p on p.id = c.sa_id
+    where ${ic ? db()`c.sa_id = ${actor.personId}` : db()`true`}
+    order by c.renewal_on`;
+  const ids = rows.map((r) => r.id);
+  const [products, users] = await Promise.all([
+    db()<{ customer_id: string; product: AdoptionProduct; status: AdoptionStatus }[]>`select customer_id, product, status from customer_products where customer_id = any(${ids})`,
+    db()<(PowerUser & { customer_id: string })[]>`
+      select id, customer_id, name, title, activity, champion, next_move from power_users where customer_id = any(${ids}) order by champion desc, name`,
+  ]);
+  return rows.map((r) => {
+    const productMap = Object.fromEntries(ADOPTION_PRODUCTS.map((p) => [p, "not_using"])) as Record<AdoptionProduct, AdoptionStatus>;
+    for (const p of products) if (p.customer_id === r.id) productMap[p.product] = p.status;
+    const trend_change = (r.usage_trend.at(-1) ?? 0) - (r.usage_trend.at(-4) ?? 0);
+    const upsells = upsellsFor({ ...r, products: productMap });
+    const power_users = users.filter((u) => u.customer_id === r.id).map(({ customer_id: _c, ...u }) => u);
+    return { ...r, products: productMap, power_users, upsells, trend_change, focus: renewalFocus({ ...r, trend_change, upsells }) };
+  });
+}
+
+export interface Workshop {
+  id: string;
+  title: string;
+  pitch: string;
+  library: string | null;
+  accounts: { id: string; account: string; arr_usd: number }[];
+  invite: { name: string; title: string; account: string }[];
+}
+
+// Workshops worth running, each for the customers with the same adoption gap.
+const WORKSHOPS: { id: string; title: string; pitch: string; library: string | null; fits: (c: CustomerRow) => boolean }[] = [
+  { id: "ai-production", title: "AI in production: AI Gateway and Workflow", pitch: "Take an AI SDK feature from demo to production: provider fallbacks, spend per feature, and durable steps with approvals.", library: "ai-agent-demo-script", fits: (c) => c.products["AI SDK"] !== "not_using" && (c.products["AI Gateway"] !== "using" || c.products.Workflow !== "using") },
+  { id: "peak-ready", title: "Ready for peak: BotID and Rolling Releases", pitch: "Before the next big launch or sale: stop bots on key routes and ship risky changes to 5% first.", library: "peak-load-demo-script", fits: (c) => c.products["CDN & ISR"] === "using" && (c.products.BotID !== "using" || c.products["Rolling Releases"] !== "using") },
+  { id: "teams-at-scale", title: "Many teams, one site: Microfrontends", pitch: "Split a large app so each team ships on its own, with one domain and a shared design system.", library: "migration-pov-playbook", fits: (c) => c.arr_usd >= 300000 && c.products.Microfrontends !== "using" },
+  { id: "prototype-v0", title: "Prototype in an afternoon with v0", pitch: "Product and design teams build working prototypes on their own design system, then hand them to engineering.", library: null, fits: (c) => c.products.v0 !== "using" },
+];
+
+/** Suggested workshops from the adoption gaps, biggest ARR first, with who to invite. At-risk accounts are left out. */
+export function suggestWorkshops(customers: CustomerRow[]): Workshop[] {
+  return WORKSHOPS.map(({ fits, ...w }) => {
+    const matched = customers.filter((c) => c.health !== "at_risk" && fits(c));
+    return {
+      ...w,
+      accounts: matched.map((c) => ({ id: c.id, account: c.account, arr_usd: c.arr_usd })),
+      invite: matched.flatMap((c) => c.power_users.map((u) => ({ name: u.name, title: u.title, account: c.account }))),
+    };
+  })
+    .filter((w) => w.accounts.length > 0)
+    .sort((a, b) => b.accounts.reduce((n, c) => n + c.arr_usd, 0) - a.accounts.reduce((n, c) => n + c.arr_usd, 0));
+}
+
+/** Sets a power user's champion status and next move. SAs on accounts they cover; managers on any. */
+export async function updatePowerUser(
+  actor: Actor,
+  input: { name: string; account?: string; champion?: ChampionStatus; nextMove?: string | null },
+): Promise<{ name: string; account: string; champion: ChampionStatus; next_move: string | null }> {
+  if (actor.kind !== "user") throw new AccessDenied("Only a signed-in person can update a power user.");
+  const matches = await db()<{ id: number; name: string; account: string; sa_id: string | null }[]>`
+    select u.id, u.name, c.account, c.sa_id from power_users u join customers c on c.id = u.customer_id
+    where u.name ilike ${"%" + input.name + "%"} and (${input.account ?? null}::text is null or c.account ilike ${"%" + (input.account ?? "") + "%"} or c.id = ${input.account ?? ""})`;
+  if (matches.length === 0) throw new Error(`No power user matches "${input.name}".`);
+  if (matches.length > 1) throw new Error(`"${input.name}" matches ${matches.map((m) => `${m.name} (${m.account})`).join(", ")}. Which one?`);
+  const [user] = matches;
+  if (actor.role === "ic" && user.sa_id !== actor.personId) {
+    throw new AccessDenied(`You can only update people at accounts you cover. Ask the SA on ${user.account} or your manager.`);
+  }
+  const [row] = await db()<{ name: string; champion: ChampionStatus; next_move: string | null }[]>`
+    update power_users set
+      champion = coalesce(${input.champion ?? null}, champion),
+      next_move = ${input.nextMove === undefined ? db()`next_move` : input.nextMove},
+      updated_by = ${actor.personId}, updated_at = now()
+    where id = ${user.id}
+    returning name, champion, next_move`;
+  return { ...row, account: user.account };
 }
