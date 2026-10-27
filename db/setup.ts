@@ -588,6 +588,19 @@ const customers = [
   ["brightside-energy", "Brightside Energy", "Commercial", "Liam Ford", "liam-oconnor", 95000, 95000, 330, "healthy",
     "Signed last month and onboarding; the first site goes live this quarter.", null,
     [0, 0, 0, 0, 18, 35], ["Next.js", "CDN & ISR"], ["v0"]],
+  // Multi-year contracts that renew more than 12 months out.
+  ["meridian-telco", "Meridian Telco", "Telco & Media", "Ben Harris", "jack-wilson", 720000, 700000, 540, "healthy",
+    "Second year of a three-year contract; usage is steady at about 85% of commit.", null,
+    [82, 84, 83, 86, 85, 86], ["Next.js", "Fluid compute", "CDN & ISR", "Firewall", "BotID", "Rolling Releases"], []],
+  ["waratah-services", "Waratah Government Services", "Public Sector", "Anna Webb", "tom-becker", 560000, 600000, 610, "healthy",
+    "Citizen services portals moved over this year; more agencies are due to join under the same contract.", null,
+    [60, 64, 69, 72, 75, 78], ["Next.js", "CDN & ISR", "Firewall", "BotID"], []],
+  ["granite-insurance", "Granite Insurance", "Enterprise (FSI)", "Marco Silva", "hannah-kim", 480000, 500000, 420, "healthy",
+    "Claims portal live; their AI team is piloting Workflow for claim approvals.", null,
+    [70, 71, 74, 76, 79, 81], ["Next.js", "Fluid compute", "CDN & ISR", "Firewall", "AI SDK"], ["Workflow"]],
+  ["pinnacle-retail", "Pinnacle Retail Group", "Strategic (Retail)", "Grace Liu", "aiko-tanaka", 450000, 450000, 480, "healthy",
+    "Our broadest adopter: nine teams on Microfrontends and an AI shopping assistant in production.", null,
+    [80, 83, 85, 88, 90, 91], ["Next.js", "Fluid compute", "CDN & ISR", "Microfrontends", "Rolling Releases", "AI SDK", "AI Gateway", "Workflow", "v0"], []],
 ] as const;
 
 // [customer, name, title, what makes them a power user, champion status, suggested next move]
@@ -602,16 +615,23 @@ const powerUsers = [
   ["kiwi-freight", "Aroha Walker", "CTO", "Pushed for the AI Gateway pilot and reviews its spend every week.", "potential", "Invite her to the AI customer advisory board."],
   ["lyrebird-games", "Kai Nakamura", "Head of Platform", "Owns hosting costs and is running the Cloudflare comparison.", "user", "Go through the Cloudflare battlecard with his own traffic numbers."],
   ["brightside-energy", "Noah Evans", "Developer", "Built their first site with v0 and Next.js in two weeks.", "user", null],
+  ["meridian-telco", "Lena Fischer", "VP Engineering", "Moved 14 brand sites to Vercel and reports the results to her board each quarter.", "champion", "Joint talk at the APJ customer event on running 14 brands on one platform."],
+  ["waratah-services", "Helen Park", "Digital Services Director", "Brings each new agency onto the platform.", "potential", "Ask her to brief the next agencies joining, as a peer rather than a vendor."],
+  ["granite-insurance", "Marcus Reid", "Head of Architecture", "Leads the Workflow pilot for claim approvals.", "potential", "Invite him to the AI in production workshop."],
+  ["pinnacle-retail", "Diego Santos", "Principal Engineer", "Set up Microfrontends for nine teams and wrote their playbook.", "champion", "Ask him to co-host the Microfrontends workshop as the customer speaker."],
 ] as const;
 
-// Runs on every setup, like seedLibrary: fills Accounts when it is empty.
+// Runs on every setup: adds any sample customer not in the database yet (with its
+// products and power users), so customers added to this list later still arrive.
 async function seedAccounts() {
-  const [{ count }] = await sql`select count(*)::int as count from customers`;
-  if (count > 0) return;
-  await sql`insert into customers ${sql(customers.map(([id, account, segment, ae, saId, arr, commit, renewal, health, note, competitor, trend]) => ({ id, account, segment, ae, sa_id: saId, arr_usd: arr, commit_usd: commit, renewal_on: day(renewal), health, health_note: note, competitor, usage_trend: [...trend] })))}`;
-  await sql`insert into customer_products ${sql(customers.flatMap(([id, , , , , , , , , , , , using, piloting]) => ADOPTION_PRODUCTS.map((product) => ({ customer_id: id, product, status: (using as readonly string[]).includes(product) ? "using" : (piloting as readonly string[]).includes(product) ? "piloting" : "not_using" }))))}`;
-  await sql`insert into power_users ${sql(powerUsers.map(([customerId, name, title, activity, champion, next]) => ({ customer_id: customerId, name, title, activity, champion, next_move: next, updated_by: MANAGER })))}`;
-  console.log("Added the sample accounts.");
+  const existing = new Set((await sql<{ id: string }[]>`select id from customers`).map((r) => r.id));
+  const missing = customers.filter(([id]) => !existing.has(id));
+  if (missing.length === 0) return;
+  await sql`insert into customers ${sql(missing.map(([id, account, segment, ae, saId, arr, commit, renewal, health, note, competitor, trend]) => ({ id, account, segment, ae, sa_id: saId, arr_usd: arr, commit_usd: commit, renewal_on: day(renewal), health, health_note: note, competitor, usage_trend: [...trend] })))}`;
+  await sql`insert into customer_products ${sql(missing.flatMap(([id, , , , , , , , , , , , using, piloting]) => ADOPTION_PRODUCTS.map((product) => ({ customer_id: id, product, status: (using as readonly string[]).includes(product) ? "using" : (piloting as readonly string[]).includes(product) ? "piloting" : "not_using" }))))}`;
+  const added = new Set(missing.map(([id]) => id as string));
+  await sql`insert into power_users ${sql(powerUsers.filter(([customerId]) => added.has(customerId)).map(([customerId, name, title, activity, champion, next]) => ({ customer_id: customerId, name, title, activity, champion, next_move: next, updated_by: MANAGER })))}`;
+  console.log(`Added ${missing.length} sample account${missing.length === 1 ? "" : "s"}.`);
 }
 
 async function main() {
