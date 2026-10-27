@@ -53,11 +53,11 @@ async function ViewerNav() {
   const { viewer } = await requireActor();
   const nav = [
     { href: "/", label: "Home" },
-    { href: "/achievements", label: "Achievements" },
-    { href: "/skills", label: "Skills Matrix" },
-    { href: "/dev-plans", label: "Dev Plans" },
     { href: "/deals", label: "Deal Coverage" },
     { href: "/accounts", label: "Accounts" },
+    { href: "/dev-plans", label: "Dev Plans" },
+    { href: "/skills", label: "Skills Matrix" },
+    { href: "/achievements", label: "Achievements" },
     { href: "/library", label: "Library" },
     { href: "/compete", label: "Compete" },
     // Hidden for ICs; the page and the data layer refuse them anyway.
