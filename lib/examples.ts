@@ -10,6 +10,8 @@ export function examplePrompts(role: Role): string[] {
         "Where are our biggest skills gaps for next quarter, and who is closest to closing them?",
         "Log a win for Hannah Kim: she ran the Kestrel Insurance AI workshop yesterday with 12 attendees.",
         "Who on the team is aiming for a manager role, and do their dev plans support it?",
+        "Who is overloaded and who has room to take Pacific Media Group?",
+        "Plan an AI Gateway workshop for Liam O'Connor with Brightside Energy on the 20th, 6 hours.",
         "Draft a promotion case for Priya Nair to Principal SA.",
         "Give Priya Nair a shout-out for mentoring the two new SAs through their first POCs.",
         "Mei Chen accepted the counter-offer. Lower her retention risk to medium.",

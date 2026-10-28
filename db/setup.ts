@@ -634,6 +634,90 @@ async function seedAccounts() {
   console.log(`Added ${missing.length} sample account${missing.length === 1 ? "" : "s"}.`);
 }
 
+// ---------- Team utilisation ----------
+
+// A typical week per SA, in hours: [deals, accounts, events, enablement, internal].
+// Customer-facing time is deals + accounts + events. Priya and Aiko run hot, Liam and
+// Mei have room, and Hannah is still ramping (lots of enablement, as expected).
+const weekShape: Record<string, readonly [number, number, number, number, number]> = {
+  "priya-nair": [24, 9, 2, 1, 6],
+  "aiko-tanaka": [15, 14, 7, 1, 5],
+  "jack-wilson": [14, 12, 3, 3, 8],
+  "sofia-rossi": [14, 12, 2, 4, 8],
+  "ravi-menon": [18, 9, 3, 3, 7],
+  "tom-becker": [18, 6, 2, 6, 8],
+  "daniel-okafor": [17, 9, 2, 4, 8],
+  "liam-oconnor": [8, 10, 2, 8, 12],
+  "mei-chen": [12, 6, 2, 8, 12],
+  "hannah-kim": [8, 4, 2, 16, 10],
+};
+// Leave hours in a given week: [person, weeks ago, hours].
+const leaveWeeks = [
+  ["tom-becker", 5, 40],
+  ["ravi-menon", 2, 24],
+  ["sofia-rossi", 7, 8],
+  ["mei-chen", 3, 16],
+] as const;
+const TIME_CATEGORIES = ["deals", "accounts", "events", "enablement", "internal"] as const;
+const UTILISATION_WEEKS = 8;
+
+/** Repeatable wobble of ±15%, so every build seeds the same numbers. */
+function wobble(seed: string): number {
+  let h = 0;
+  for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return 0.85 + (h % 31) / 100;
+}
+
+/** The Monday of the week `weeksAgo` weeks before this one, as YYYY-MM-DD. */
+function mondayWeeksAgo(weeksAgo: number): string {
+  const sinceMonday = (new Date().getUTCDay() + 6) % 7;
+  return day(-sinceMonday - 7 * weeksAgo);
+}
+
+// [person, kind, title, account, starts in days, lasts days, planned hours]
+const teamActivities = [
+  ["priya-nair", "poc", "Aurora Logistics agent POC", "Aurora Logistics", 3, 15, 20],
+  ["priya-nair", "workshop", "InfoSec review with the bank's security team", "Harbour Bank", 8, 1, 6],
+  ["aiko-tanaka", "poc", "Agent POC with research IT", "Lakeside University", 2, 19, 18],
+  ["aiko-tanaka", "event", "Talk: running nine teams on Microfrontends", "Pinnacle Retail Group", 12, 2, 10],
+  ["jack-wilson", "workshop", "Discovery workshop on the AI support agent", "Southern Cross Mobile", 6, 1, 8],
+  ["jack-wilson", "travel", "Auckland customer visits", null, 20, 3, 12],
+  ["sofia-rossi", "workshop", "Performance workshop before migration phase 2", "Tasman Retail", 15, 1, 8],
+  ["ravi-menon", "leave", "Annual leave", null, 14, 15, 0],
+  ["tom-becker", "event", "Canberra public sector roundtable", null, 20, 1, 6],
+  ["daniel-okafor", "enablement", "Management training, module 3", null, 11, 2, 12],
+  ["liam-oconnor", "workshop", "Next.js upgrade clinic", "Brightside Energy", 18, 1, 6],
+  ["mei-chen", "workshop", "AI Gateway workshop for the pilot team", "Kiwi Freight", 10, 1, 8],
+  ["hannah-kim", "enablement", "SA bootcamp (week 2)", null, 5, 5, 30],
+] as const;
+
+async function seedUtilisation() {
+  const [{ count }] = await sql`select count(*)::int as count from time_entries`;
+  if (count === 0) {
+    const rows = Object.entries(weekShape).flatMap(([personId, shape]) =>
+      Array.from({ length: UTILISATION_WEEKS }, (_, i) => i + 1).flatMap((weeksAgo) => {
+        const leave = leaveWeeks.find(([p, w]) => p === personId && w === weeksAgo)?.[2] ?? 0;
+        const scale = (40 - leave) / 40;
+        const week_of = mondayWeeksAgo(weeksAgo);
+        const worked = TIME_CATEGORIES.map((category, c) => ({
+          person_id: personId,
+          week_of,
+          category,
+          hours: Math.round(shape[c] * scale * wobble(`${personId}${weeksAgo}${category}`) * 2) / 2,
+        }));
+        return leave > 0 ? [...worked, { person_id: personId, week_of, category: "leave", hours: leave }] : worked;
+      }),
+    );
+    await sql`insert into time_entries ${sql(rows)}`;
+    console.log("Added sample time for Team utilisation.");
+  }
+  const [{ planned }] = await sql`select count(*)::int as planned from team_activities`;
+  if (planned === 0) {
+    await sql`insert into team_activities ${sql(teamActivities.map(([personId, kind, title, account, starts, lasts, hours]) => ({ person_id: personId, kind, title, account, starts_on: day(starts), ends_on: day(starts + lasts - 1), hours, created_by: MANAGER })))}`;
+    console.log("Added sample planned activities.");
+  }
+}
+
 async function main() {
   await root.begin(async (tx) => {
     sql = tx as unknown as typeof root;
@@ -654,7 +738,7 @@ async function seed() {
   let slackIds: { id: string; slack_user_id: string }[] = [];
   if (reset || incomplete) {
     slackIds = await sql`select id, slack_user_id from people where slack_user_id is not null`;
-    await sql`truncate power_users, customer_products, customers, battlecards, library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
+    await sql`truncate team_activities, time_entries, power_users, customer_products, customers, battlecards, library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
     const [{ count }] = await sql`select count(*)::int as count from people`;
     if (count > 0) {
@@ -679,6 +763,7 @@ async function seed() {
       await seedLibrary();
       await seedCompete();
       await seedAccounts();
+      await seedUtilisation();
       console.log("Database already seeded. Use --reset to reseed.");
       return;
     }
@@ -712,6 +797,7 @@ async function seed() {
   await seedLibrary();
   await seedCompete();
   await seedAccounts();
+  await seedUtilisation();
   console.log(`Done: seeded ${people.length} people and their demo data.`);
 }
 

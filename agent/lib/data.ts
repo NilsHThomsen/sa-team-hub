@@ -1177,3 +1177,275 @@ export async function updatePowerUser(
     returning name, champion, next_move`;
   return { ...row, account: user.account };
 }
+
+// ---------- Team utilisation (managers only) ----------
+
+export const TIME_CATEGORIES = ["deals", "accounts", "events", "enablement", "internal", "leave"] as const;
+export type TimeCategory = (typeof TIME_CATEGORIES)[number];
+export const TIME_LABEL: Record<TimeCategory, string> = {
+  deals: "Deals",
+  accounts: "Accounts",
+  events: "Events and workshops",
+  enablement: "Enablement",
+  internal: "Internal",
+  leave: "Leave",
+};
+/** Time with or for customers. Utilisation is these hours over the hours available (a 40-hour week less leave). */
+const CUSTOMER_FACING: readonly TimeCategory[] = ["deals", "accounts", "events"];
+export const WEEK_HOURS = 40;
+export const UTILISATION_TARGET = 70; // % customer-facing
+export const OVERLOADED_AT = 85;
+export const ROOM_BELOW = 55;
+export const RAMP_DAYS = 180; // new starters are ramping for their first 6 months...
+export const RAMP_TARGET = 40; // ...with a lower target while they learn
+const LONG_WEEK_HOURS = 44;
+export const UTILISATION_WINDOW = 4; // weeks the headline number averages over
+const HISTORY_WEEKS = 8;
+export const PLAN_DAYS = 42; // how far ahead the plan looks
+
+export const ACTIVITY_KINDS = ["workshop", "poc", "event", "enablement", "leave", "travel"] as const;
+export type ActivityKind = (typeof ACTIVITY_KINDS)[number];
+export const ACTIVITY_LABEL: Record<ActivityKind, string> = { workshop: "Workshop", poc: "POC", event: "Event", enablement: "Enablement", leave: "Leave", travel: "Travel" };
+
+export interface TeamActivity {
+  id: number;
+  person_id: string;
+  person_name: string;
+  kind: ActivityKind;
+  title: string;
+  account: string | null;
+  starts_on: string;
+  ends_on: string;
+  hours: number;
+  /** Days from today to the start; 0 or less once it has started. */
+  starts_in: number;
+}
+
+export type UtilisationStatus = "overloaded" | "on_target" | "room" | "ramping";
+export const UTILISATION_STATUS_LABEL: Record<UtilisationStatus, string> = { overloaded: "Overloaded", on_target: "On target", room: "Has room", ramping: "Ramping" };
+
+export interface UtilisationWeek {
+  week_of: string;
+  hours: Record<TimeCategory, number>;
+  /** Null for a week entirely on leave. */
+  utilisation: number | null;
+}
+
+export interface UtilisationRow {
+  person_id: string;
+  name: string;
+  level: string;
+  segment: string;
+  ramping: boolean;
+  target: number;
+  /** Oldest first. */
+  weeks: UtilisationWeek[];
+  /** Customer-facing % over the last UTILISATION_WINDOW weeks. */
+  utilisation: number | null;
+  /** Average hours worked per week (leave excluded) over the same weeks. */
+  hours_per_week: number;
+  /** Hours by category over the same weeks. */
+  split: Record<TimeCategory, number>;
+  active_deals: { id: string; account: string; stage: number; presales_stage: PresalesStage; acv_usd: number }[];
+  accounts: number;
+  arr_usd: number;
+  upcoming: TeamActivity[];
+  planned_hours: number;
+  status: UtilisationStatus;
+  reasons: string[];
+}
+
+export interface Rebalance {
+  kind: "assign" | "move" | "protect" | "cover" | "pair";
+  text: string;
+  deal_id?: string;
+  to?: string;
+}
+
+const emptyHours = () => Object.fromEntries(TIME_CATEGORIES.map((c) => [c, 0])) as Record<TimeCategory, number>;
+const sumHours = (h: Record<TimeCategory, number>, cats: readonly TimeCategory[]) => cats.reduce((n, c) => n + h[c], 0);
+const pct = (part: number, whole: number) => (whole > 0 ? Math.round((100 * part) / whole) : null);
+const usd0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+/**
+ * Where each SA's time goes, how that compares with the target, what's planned in the
+ * next six weeks, and suggestions for rebalancing deals. Managers only.
+ */
+export async function teamUtilisation(actor: Actor): Promise<{
+  people: UtilisationRow[];
+  weeks: string[];
+  team: { utilisation: number | null; split: Record<TimeCategory, number> };
+  suggestions: Rebalance[];
+}> {
+  requireManager(actor, "Team utilisation");
+  const sql = db();
+  const [people, entries, deals, customers, activities] = await Promise.all([
+    sql<{ id: string; name: string; level: string; segment: string; days_in: number }[]>`
+      select id, name, level, segment, (current_date - start_date)::int as days_in from people where role = 'ic' order by name`,
+    sql<{ person_id: string; week_of: string; category: TimeCategory; hours: number }[]>`
+      select person_id, to_char(week_of, 'YYYY-MM-DD') as week_of, category, hours::float as hours from time_entries
+      where week_of in (select distinct week_of from time_entries order by week_of desc limit ${HISTORY_WEEKS})`,
+    sql<{ id: string; account: string; sa_id: string | null; stage: number; presales_stage: PresalesStage; acv_usd: number }[]>`
+      select id, account, sa_id, stage, presales_stage, acv_usd from deals where stage between 2 and 4 order by acv_usd desc`,
+    sql<{ sa_id: string; accounts: number; arr_usd: number }[]>`
+      select sa_id, count(*)::int as accounts, sum(arr_usd)::int as arr_usd from customers where sa_id is not null group by sa_id`,
+    listTeamActivities(actor),
+  ]);
+
+  const weeks = [...new Set(entries.map((e) => e.week_of))].sort();
+  const recent = new Set(weeks.slice(-UTILISATION_WINDOW));
+  const teamSplit = emptyHours();
+
+  const rows: UtilisationRow[] = people.map((p) => {
+    const mine = entries.filter((e) => e.person_id === p.id);
+    const byWeek = weeks.map((week_of) => {
+      const hours = emptyHours();
+      for (const e of mine) if (e.week_of === week_of) hours[e.category] += e.hours;
+      const available = WEEK_HOURS - hours.leave;
+      return { week_of, hours, utilisation: available > 0 ? pct(sumHours(hours, CUSTOMER_FACING), available) : null };
+    });
+    const split = emptyHours();
+    for (const w of byWeek) if (recent.has(w.week_of)) for (const c of TIME_CATEGORIES) split[c] += w.hours[c];
+    for (const c of TIME_CATEGORIES) teamSplit[c] += split[c];
+    const available = WEEK_HOURS * recent.size - split.leave;
+    const workedWeeks = byWeek.filter((w) => recent.has(w.week_of) && w.utilisation !== null).length;
+    const worked = sumHours(split, TIME_CATEGORIES.filter((c) => c !== "leave"));
+    const utilisation = pct(sumHours(split, CUSTOMER_FACING), available);
+    const hoursPerWeek = workedWeeks > 0 ? Math.round(worked / workedWeeks) : 0;
+
+    const ramping = p.days_in < RAMP_DAYS;
+    const target = ramping ? RAMP_TARGET : UTILISATION_TARGET;
+    const activeDeals = deals.filter((d) => d.sa_id === p.id).map(({ sa_id: _s, ...d }) => d);
+    const upcoming = activities.filter((a) => a.person_id === p.id);
+    const plannedHours = upcoming.reduce((n, a) => n + a.hours, 0);
+    const book = customers.find((c) => c.sa_id === p.id);
+
+    const reasons: string[] = [];
+    if (utilisation !== null && utilisation >= OVERLOADED_AT) reasons.push(`${utilisation}% customer-facing`);
+    if (hoursPerWeek >= LONG_WEEK_HOURS) reasons.push(`${hoursPerWeek} hours a week`);
+    if (activeDeals.length > SA_DEAL_LIMIT) reasons.push(`${activeDeals.length} active deals`);
+    let status: UtilisationStatus = "on_target";
+    if (reasons.length > 0) status = "overloaded";
+    else if (ramping) {
+      status = "ramping";
+      reasons.push(`started ${p.days_in} days ago, so the target is ${RAMP_TARGET}% for now`);
+    } else if (utilisation !== null && utilisation < ROOM_BELOW) {
+      status = "room";
+      reasons.push(`${utilisation}% customer-facing`);
+    }
+    if (plannedHours >= 25) reasons.push(`${plannedHours} hours planned in the next ${PLAN_DAYS / 7} weeks`);
+
+    return {
+      person_id: p.id,
+      name: p.name,
+      level: p.level,
+      segment: p.segment,
+      ramping,
+      target,
+      weeks: byWeek,
+      utilisation,
+      hours_per_week: hoursPerWeek,
+      split,
+      active_deals: activeDeals,
+      accounts: book?.accounts ?? 0,
+      arr_usd: book?.arr_usd ?? 0,
+      upcoming,
+      planned_hours: plannedHours,
+      status,
+      reasons,
+    };
+  });
+
+  const teamAvailable = WEEK_HOURS * recent.size * rows.length - teamSplit.leave;
+  return {
+    people: rows,
+    weeks,
+    team: { utilisation: pct(sumHours(teamSplit, CUSTOMER_FACING), teamAvailable), split: teamSplit },
+    suggestions: rebalance(rows, deals),
+  };
+}
+
+/** Plain rules, so a manager can see why each suggestion is there. */
+function rebalance(rows: UtilisationRow[], deals: { id: string; account: string; sa_id: string | null; stage: number; acv_usd: number }[]): Rebalance[] {
+  const out: Rebalance[] = [];
+  const awaySoon = (r: UtilisationRow) => r.upcoming.some((a) => a.kind === "leave" && a.starts_in <= 14);
+  // Everyone with room, least busy first; each suggestion adds to their load so the work spreads.
+  const extra = new Map<string, number>();
+  const pick = (exclude?: string) =>
+    rows
+      .filter((r) => r.person_id !== exclude && !r.ramping && r.status !== "overloaded" && !awaySoon(r))
+      .sort((a, b) => (a.utilisation ?? 0) + (extra.get(a.person_id) ?? 0) - ((b.utilisation ?? 0) + (extra.get(b.person_id) ?? 0)))[0];
+  const take = (r: UtilisationRow) => extra.set(r.person_id, (extra.get(r.person_id) ?? 0) + 10);
+
+  for (const d of deals.filter((d) => d.sa_id === null)) {
+    const to = pick();
+    if (!to) break;
+    take(to);
+    out.push({ kind: "assign", deal_id: d.id, to: to.person_id, text: `Assign ${d.account} (stage ${d.stage}, ${usd0.format(d.acv_usd)}, no SA) to ${to.name}, who is at ${to.utilisation}% customer-facing.` });
+  }
+  for (const r of rows.filter((r) => r.status === "overloaded")) {
+    // Early-stage deals are the easiest to hand over: the customer hasn't built a relationship with the SA yet.
+    const movable = r.active_deals.filter((d) => d.presales_stage === "discovery" || d.presales_stage === "solution_design").sort((a, b) => a.acv_usd - b.acv_usd)[0];
+    const to = movable ? pick(r.person_id) : undefined;
+    if (movable && to) {
+      take(to);
+      out.push({ kind: "move", deal_id: movable.id, to: to.person_id, text: `Move ${movable.account} (still in ${LABEL[movable.presales_stage].toLowerCase()}) from ${r.name} to ${to.name}, to bring ${r.name.split(" ")[0]} back from ${r.utilisation}%.` });
+    } else {
+      const busiest = r.upcoming.filter((a) => a.kind === "poc" || a.kind === "event").sort((a, b) => b.ends_on.localeCompare(a.ends_on))[0];
+      out.push({ kind: "protect", text: `Hold new deals for ${r.name} (${r.utilisation}% customer-facing)${busiest ? ` until ${busiest.title} ends on ${busiest.ends_on}` : ""}; nothing early-stage to hand over.` });
+    }
+  }
+  for (const r of rows) {
+    const leave = r.upcoming.find((a) => a.kind === "leave");
+    if (!leave || r.active_deals.length === 0) continue;
+    const to = pick(r.person_id);
+    out.push({ kind: "cover", to: to?.person_id, text: `${r.name} is on leave ${leave.starts_on} to ${leave.ends_on}: line up ${to ? to.name : "someone"} to cover ${r.active_deals.map((d) => d.account).join(" and ")}.` });
+  }
+  for (const r of rows.filter((r) => r.status === "ramping")) {
+    const mentor = rows.filter((m) => !m.ramping && m.status !== "overloaded" && ["SSA", "PSA"].includes(m.level)).sort((a, b) => (a.utilisation ?? 0) - (b.utilisation ?? 0))[0];
+    out.push({ kind: "pair", to: mentor?.person_id, text: `${r.name} is ramping (${r.utilisation}% against a ${RAMP_TARGET}% target)${mentor ? `: pair them with ${mentor.name} on their next customer workshop` : ""}.` });
+  }
+  return out;
+}
+
+/** Planned activities that haven't finished and start in the next PLAN_DAYS days. Managers only. */
+export async function listTeamActivities(actor: Actor): Promise<TeamActivity[]> {
+  requireManager(actor, "Team utilisation");
+  return db()<TeamActivity[]>`
+    select a.id, a.person_id, p.name as person_name, a.kind, a.title, a.account,
+           to_char(a.starts_on, 'YYYY-MM-DD') as starts_on, to_char(a.ends_on, 'YYYY-MM-DD') as ends_on, a.hours,
+           (a.starts_on - current_date)::int as starts_in
+    from team_activities a join people p on p.id = a.person_id
+    where a.ends_on >= current_date and a.starts_on <= current_date + ${PLAN_DAYS}::int
+    order by a.starts_on, p.name`;
+}
+
+/** Adds a planned activity (a workshop, POC, event, enablement, leave or travel) for an SA. Managers only. */
+export async function planTeamActivity(
+  actor: Actor,
+  input: { personId: string; kind: ActivityKind; title: string; account?: string | null; startsOn: string; endsOn?: string; hours?: number },
+): Promise<TeamActivity> {
+  requireManager(actor, "Team utilisation");
+  if (actor.kind !== "user") throw new AccessDenied("Planning needs a signed-in manager.");
+  const endsOn = input.endsOn ?? input.startsOn;
+  if (endsOn < input.startsOn) throw new Error("The end date is before the start date.");
+  const hours = input.kind === "leave" ? 0 : (input.hours ?? 0);
+  const [{ id }] = await db()<{ id: number }[]>`
+    insert into team_activities (person_id, kind, title, account, starts_on, ends_on, hours, created_by)
+    values (${input.personId}, ${input.kind}, ${input.title}, ${input.account ?? null}, ${input.startsOn}, ${endsOn}, ${hours}, ${actor.personId})
+    returning id`;
+  const [row] = await db()<TeamActivity[]>`
+    select a.id, a.person_id, p.name as person_name, a.kind, a.title, a.account,
+           to_char(a.starts_on, 'YYYY-MM-DD') as starts_on, to_char(a.ends_on, 'YYYY-MM-DD') as ends_on, a.hours,
+           (a.starts_on - current_date)::int as starts_in
+    from team_activities a join people p on p.id = a.person_id where a.id = ${id}`;
+  return row;
+}
+
+/** Removes a planned activity by id. Managers only. */
+export async function removeTeamActivity(actor: Actor, id: number): Promise<{ removed: boolean; title?: string; person?: string }> {
+  requireManager(actor, "Team utilisation");
+  const [row] = await db()<{ title: string; name: string }[]>`
+    delete from team_activities a using people p where a.id = ${id} and p.id = a.person_id returning a.title, p.name`;
+  return row ? { removed: true, title: row.title, person: row.name } : { removed: false };
+}

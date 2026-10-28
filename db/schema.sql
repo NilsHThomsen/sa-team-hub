@@ -339,3 +339,29 @@ create table if not exists power_users (
   updated_by   text references people(id),
   updated_at   timestamptz not null default now()
 );
+
+-- ---------- Team utilisation ----------
+-- Managers only. Where each SA's week goes, and what's planned for the weeks ahead.
+-- The hours are sample data here; in production they'd come from calendars or CRM
+-- activity rather than timesheets.
+
+create table if not exists time_entries (
+  person_id    text not null references people(id) on delete cascade,
+  week_of      date not null,               -- the Monday of the week
+  category     text not null check (category in ('deals', 'accounts', 'events', 'enablement', 'internal', 'leave')),
+  hours        numeric(4, 1) not null check (hours >= 0),
+  primary key (person_id, week_of, category)
+);
+
+create table if not exists team_activities (
+  id           serial primary key,
+  person_id    text not null references people(id) on delete cascade,
+  kind         text not null check (kind in ('workshop', 'poc', 'event', 'enablement', 'leave', 'travel')),
+  title        text not null,
+  account      text,
+  starts_on    date not null,
+  ends_on      date not null check (ends_on >= starts_on),
+  hours        int not null default 0,      -- planned customer or prep hours; 0 for leave
+  created_by   text references people(id),
+  created_at   timestamptz not null default now()
+);

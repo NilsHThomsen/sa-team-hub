@@ -48,13 +48,14 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
   );
 }
 
-/** The tabs: managers see Talent, AI Usage and Settings as well. */
+/** The tabs: managers see Team utilisation, Talent, AI Usage and Settings as well. */
 async function ViewerNav() {
   const { viewer } = await requireActor();
   const nav = [
     { href: "/", label: "Home" },
     { href: "/deals", label: "Deal Coverage" },
     { href: "/accounts", label: "Accounts" },
+    ...(viewer.role === "manager" ? [{ href: "/utilisation", label: "Team utilisation" }] : []),
     { href: "/dev-plans", label: "Dev Plans" },
     { href: "/skills", label: "Skills Matrix" },
     { href: "/achievements", label: "Achievements" },

@@ -14,6 +14,7 @@ Built on Vercel with **eve** (agent), the **AI SDK**, **AI Gateway** (models and
 | Development Plans | Plans grouped by career goal, with next steps and overdue flags | Update a plan or career goal | `skills_and_plans` | `update_dev_plan`, `update_career_goal` |
 | Deal Coverage | Top 5 deals this quarter as a scorecard, SA coverage, stale next steps and overloaded SAs | Update next steps and the scorecard; create or reassign deals (managers) | `deals` (main can read coverage) | `review_deal_coverage`, `update_deal_next_step`, `update_deal_scorecard`, `manage_deal` |
 | Accounts | Customers after the sale: renewals in the next 6 months marked save, grow or renew, six months of usage against commit, an adoption grid of Vercel products (using, piloting, not using), upsell ideas from readable rules with rough sizes, workshops to run and who to invite, and power users to turn into champions. Managers see every account, SAs their own | Which renewals to focus on and what to upsell; mark a champion and their next move | Main (`deals` updates power users) | `review_accounts`, `update_power_user` |
+| Team utilisation (managers only) | Each SA's customer-facing time against a 70% target (40% while ramping), 8 weeks of history, where the hours go, active deals and accounts, who is overloaded or has room, rule-based rebalancing ideas, and a six-week plan of workshops, POCs, events, enablement, leave and travel. Sample hours; in production they'd come from calendars and CRM activity | Who has room for a deal; plan or remove an activity | `talent` | `get_team_utilisation`, `plan_team_activity`, `remove_team_activity` |
 | Library | Reference architectures (diagram, approach, watch-outs) and demo assets (scripts, playbooks, cheat sheets), with where each was reused and the most reused contributor | Recommend what to reuse on a deal; log a reuse | Main | `find_library_items`, `record_library_use` |
 | Compete | Battlecards for Netlify, Cloudflare and AWS (Amplify or self-hosting): where they win, where we win, discovery questions, objections, Library items to demo and dated sources, with how many deals each shows up on | Position against a competitor; record the main competitor on a deal | Main (`deals` records it) | `get_battlecard`, `set_deal_competitor` |
 | Talent (managers only) | 9-box, retention risk, promotion cases, succession and warm bench | Update any of these; draft a promotion case and approve or decline it | `talent` | `get_talent_overview`, `update_talent_rating`, `update_retention_risk`, `draft_promotion_case`, `decide_promotion_case`, `update_succession`, `update_warm_bench`, `update_team_member` |
@@ -37,7 +38,7 @@ Browser ──► Next.js 16
                   ├─ main agent        everyday asks; hands the rest to a specialist
                   ├─ deals             coverage, scorecard, next steps
                   ├─ skills_and_plans  skills matrix, dev plans, career goals
-                  ├─ talent            managers only: 9-box, retention, promotions, succession
+                  ├─ talent            managers only: 9-box, retention, promotions, succession, utilisation
                   └─ Friday digest     weekly schedule
              agent/lib/data.ts  ◄── one data layer, shared by pages and agent
                     │
@@ -53,7 +54,7 @@ Cache Components is on (`next.config.ts`), so every page is a partial prerender:
 | What | How it's cached | Cleared by |
 | --- | --- | --- |
 | Page shells (header, Ask the agent button, a loading skeleton for a first visit) | Prerendered, served from the CDN | A new deploy |
-| Your own pages: Home, Achievements, Deals, Accounts, Dev Plans, Skills | `"use cache: private"`, 5 minutes, in your browser only | Any button that changes data (`revalidatePath`), each chat turn, a reload |
+| Your own pages: Home, Achievements, Deals, Accounts, Team utilisation, Dev Plans, Skills | `"use cache: private"`, 5 minutes, in your browser only | Any button that changes data (`revalidatePath`), each chat turn, a reload |
 | AI Usage | `"use cache: private"`, 5 minutes, so going back and forth doesn't re-run the billed Gateway reports | Saving a budget, a reload |
 | Weekly digest | `"use cache: remote"` (Runtime Cache, one copy for all instances), hourly | `updateTag("digest")` after each chat turn |
 | Team roster, Skills Matrix, selected model | `"use cache: remote"` in `lib/cached.ts`: hourly, every 5 minutes, hourly | `updateTag` after each chat turn (roster, skills) or on saving the model |
