@@ -30,6 +30,14 @@ const root = postgres(url, { ssl: url.includes("localhost") ? false : "require",
 let sql = root;
 const reset = process.argv.includes("--reset");
 
+// The demo data is written relative to the day it was seeded, so it goes stale: next
+// steps age, this quarter's deals slip into last quarter, renewals pass. A build that
+// finds the data older than this reseeds it relative to today (keeping Slack ids, the
+// model and the budget). Edits made by chatting since the last seed are lost, which
+// also puts the demo back to its starting point before a run-through.
+const REFRESH_AFTER_DAYS = 7;
+const SEEDED_ON_KEY = "demo_seeded_on";
+
 const day = (offset: number) => {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offset);
@@ -734,9 +742,16 @@ async function seed() {
   const incomplete = peopleCount > 0 && skillCount === 0 && dealCount === 0;
   if (incomplete) console.log("Found people but no other data; reseeding the demo data.");
 
+  // No date recorded means the data predates this check, so it's stale too.
+  const [seededOn] = await sql<{ age: number }[]>`select (current_date - value::date)::int as age from app_settings where key = ${SEEDED_ON_KEY}`;
+  const stale = peopleCount > 0 && (!seededOn || seededOn.age >= REFRESH_AFTER_DAYS);
+  if (stale && !reset && !incomplete) {
+    console.log(seededOn ? `Demo data is ${seededOn.age} days old; reseeding it relative to today.` : "Demo data has no seed date; reseeding it relative to today.");
+  }
+
   // Slack member ids are entered by hand on Settings, so carry them across a reset.
   let slackIds: { id: string; slack_user_id: string }[] = [];
-  if (reset || incomplete) {
+  if (reset || incomplete || stale) {
     slackIds = await sql`select id, slack_user_id from people where slack_user_id is not null`;
     await sql`truncate team_activities, time_entries, power_users, customer_products, customers, battlecards, library_uses, demo_assets, reference_architectures, talent_ratings, shoutouts, digests, deal_updates, career_goals, promotion_cases, candidates, succession, retention_risks, deals, dev_plans, achievements, skill_needs, skills, people restart identity cascade`;
   } else {
@@ -798,6 +813,9 @@ async function seed() {
   await seedCompete();
   await seedAccounts();
   await seedUtilisation();
+  await sql`
+    insert into app_settings (key, value, updated_by) values (${SEEDED_ON_KEY}, current_date::text, ${MANAGER})
+    on conflict (key) do update set value = excluded.value, updated_by = excluded.updated_by, updated_at = now()`;
   console.log(`Done: seeded ${people.length} people and their demo data.`);
 }
 
