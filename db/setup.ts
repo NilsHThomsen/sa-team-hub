@@ -334,13 +334,13 @@ const architectures = [
     summary: "Vercel in front of the whole domain on day one; journeys move across one at a time.",
     problem: "A monolith serves server-rendered templates with some React on top. A big-bang rewrite is too risky, and the business can't freeze features while it happens.",
     approach:
-      "Point the production domain at Vercel first. A fallback rewrite sends every path the new app doesn't serve yet to the legacy origin, so customers see one site throughout. " +
-      "Move one journey at a time, highest value first, each as its own microfrontend that its team ships independently, with a shared design system in Turborepo. " +
-      "Global Config holds a kill switch per path, so going back to the legacy page is a dashboard change rather than a deploy, and Rolling Releases puts each journey in front of 5% of traffic before it goes to everyone.",
+      "Point the production domain at Vercel first. The default app in the microfrontends group owns the domain and rewrites every path not yet migrated to the legacy origin, so customers see one site throughout. " +
+      "Move one journey at a time, highest value first, each as its own microfrontend that its team ships independently, with a shared design system in Turborepo. Vercel routes each path to the app that owns it within the same request, with no extra hop. " +
+      "Each journey's paths sit behind a flag in microfrontends.json, so it can go to one market or a share of users first and back to legacy without a deploy. Instant Rollback on the default app restores the previous routing.",
     when_to_use: "Several teams, a migration measured in quarters, and journeys with clear URL boundaries.",
     watch_outs:
-      "Sessions don't cross domains, so move them to a shared store before the first journey goes live. Rewrites are limited to 1,024 routes per deployment; use Routing Middleware beyond that. Keep URLs, canonicals and redirects identical so search rankings don't move.",
-    products: ["Next.js", "Microfrontends", "Rewrites", "Global Config", "Rolling Releases", "Skew Protection"],
+      "Sessions don't cross domains, so move them to a shared store before the first journey goes live. Flagged routing needs the default app to be Next.js with the microfrontends middleware, and every app must share the same FLAGS_SECRET. Paths can't overlap between apps. Keep URLs, canonicals and redirects identical so search rankings don't move. Pro includes two microfrontends projects; Enterprise pricing is custom.",
+    products: ["Next.js", "Microfrontends", "Flags", "Rewrites", "Instant Rollback", "Turborepo"],
     author_id: "sofia-rossi",
   },
   {

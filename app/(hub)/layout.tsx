@@ -19,7 +19,7 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-10 border-b bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+        <div className="mx-auto flex max-w-[96rem] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link className="font-semibold tracking-tight" href="/">
             SA Team Hub
           </Link>
@@ -41,7 +41,7 @@ export default function HubLayout({ children }: { readonly children: ReactNode }
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-[96rem] px-4 py-8">
         <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
       </main>
     </div>
