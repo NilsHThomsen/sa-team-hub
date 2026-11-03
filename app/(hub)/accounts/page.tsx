@@ -12,8 +12,8 @@ import { AdoptionKey, AdoptionMark, UsageSparkline } from "./_parts";
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 const HEALTH_PILL = { healthy: "low", watch: "medium", at_risk: "high" } as const; // reuses the green, amber and red pills
 const FOCUS = {
-  save: { label: "Save", className: "text-red-700" },
-  grow: { label: "Grow", className: "text-emerald-700" },
+  save: { label: "Save", className: "text-bad" },
+  grow: { label: "Grow", className: "text-good" },
   renew: { label: "Renew", className: "text-muted-foreground" },
 } as const;
 const CHAMPION_PILL = { champion: "complete", potential: "next_focus", user: "not_started" } as const;

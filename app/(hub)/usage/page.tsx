@@ -303,7 +303,7 @@ function BudgetView({ budget, days, end }: { readonly budget: number | null; rea
         <Stat href="/settings#budget" label="Budget" value={budget ? usd0.format(budget) : "Not set"} />
       </div>
       <p
-        className={`rounded-xl border bg-card p-4 font-medium text-sm ${verdict.tone === "bad" ? "text-red-600" : verdict.tone === "warn" ? "text-amber-600" : verdict.tone === "good" ? "text-emerald-600" : ""}`}
+        className={`rounded-xl border bg-card p-4 font-medium text-sm ${verdict.tone === "bad" ? "text-bad" : verdict.tone === "warn" ? "text-warn" : verdict.tone === "good" ? "text-good" : ""}`}
       >
         {verdict.text}
       </p>

@@ -17,6 +17,13 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  /* Status colours: text and marks, plus a soft background for pills. Always paired with a label. */
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -54,6 +61,12 @@
   --input: oklch(0.916 0 0);
   --ring: oklch(0.708 0 0);
   --radius: 0.625rem;
+  --good: oklch(0.508 0.118 165.612);
+  --good-soft: oklch(0.95 0.052 163.051);
+  --warn: oklch(0.555 0.163 48.998);
+  --warn-soft: oklch(0.962 0.059 95.617);
+  --bad: oklch(0.505 0.213 27.518);
+  --bad-soft: oklch(0.936 0.032 17.717);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -77,6 +90,12 @@
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);
+    --good: oklch(0.845 0.143 164.978);
+    --good-soft: oklch(0.262 0.051 172.552);
+    --warn: oklch(0.879 0.169 91.605);
+    --warn-soft: oklch(0.279 0.077 45.635);
+    --bad: oklch(0.808 0.114 19.571);
+    --bad-soft: oklch(0.258 0.092 26.042);
   }
 }
 

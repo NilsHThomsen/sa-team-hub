@@ -347,15 +347,17 @@ const architectures = [
     id: "peak-traffic-booking",
     title: "Booking and checkout at peak demand",
     summary: "Cache everything that's the same for everyone; protect and scale the parts that aren't.",
-    problem: "Traffic spikes at known moments, such as a sale or check-in opening, slow booking down and overload the database and partner APIs. Bots scrape fares and hold inventory.",
+    problem: "Traffic spikes at known moments, such as a fare sale or check-in opening, slow booking down and overload the booking service and partner APIs. Bots scrape fares and hold inventory.",
     approach:
-      "Content pages (destinations, offers, products) use ISR: served from the CDN and purged by tag when the CMS publishes. " +
+      "Content pages (destinations, hotels, offers) use ISR: served from the CDN and purged by tag when the CMS publishes. " +
       "Search and fares are an API cached at the CDN for a few seconds with stale-while-revalidate, and its calls to the inventory system sit in the Runtime Cache. " +
-      "Booking and payment are never cached: Fluid compute scales them and reuses database connections, and BotID plus WAF rate limits keep bots out. Changes ship behind Rolling Releases and are promoted on conversion.",
+      "Booking is never cached, and the booking request only records it with the existing booking service (on Kubernetes, reached privately) and returns a reference. A Workflow then holds the seat with the GDS, takes payment and confirms, as durable steps that retry, so a slow partner doesn't fail the booking. " +
+      "Fluid compute scales the functions, and BotID plus WAF rate limits keep bots out. Changes ship behind Rolling Releases and are promoted on conversion.",
     when_to_use: "Predictable spikes, read-heavy search in front of a slow or rate-limited backend, and bot pressure on high-value routes.",
     watch_outs:
-      "Never cache a response that sets a cookie or varies by user. Load test with the real spike shape before the event, not after. Size the database pool for Fluid compute's concurrency.",
-    products: ["ISR", "CDN cache", "Runtime Cache", "Fluid compute", "BotID", "WAF", "Rolling Releases"],
+      "Never cache a response that sets a cookie or varies by user. Concurrency ramps by up to 1,000 per 10 seconds per region, so an instant spike needs little work per request. Workflow steps can run more than once: pass an idempotency key to the GDS and payment calls. " +
+      "Skew Protection doesn't pin full-page navigations by default; pin checkout sessions with the __vdpl cookie. Load testing is Enterprise only and booked with Vercel in advance. Agree a request limit with the booking service team, since Vercel scales faster than it does.",
+    products: ["ISR", "CDN cache", "Runtime Cache", "Fluid compute", "Workflow", "BotID", "WAF", "Rolling Releases", "Skew Protection"],
     author_id: "daniel-okafor",
   },
   {

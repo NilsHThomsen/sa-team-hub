@@ -21,7 +21,7 @@ function Deliverables({ done }: { readonly done: DealRow["deliverables"] }) {
           <span
             className={cn(
               "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs",
-              complete ? "bg-emerald-100 font-medium text-emerald-800" : "text-muted-foreground ring-1 ring-border",
+              complete ? "bg-good-soft font-medium text-good" : "text-muted-foreground ring-1 ring-border",
             )}
             key={d}
             title={`${DELIVERABLE_LABEL[d]}: ${complete ? "done" : "not done yet"}`}
@@ -35,7 +35,7 @@ function Deliverables({ done }: { readonly done: DealRow["deliverables"] }) {
 }
 
 function Score({ value }: { readonly value: number }) {
-  const tone = value >= 80 ? "bg-emerald-500" : value >= 50 ? "bg-amber-500" : "bg-rose-500";
+  const tone = value >= 80 ? "bg-good" : value >= 50 ? "bg-warn" : "bg-bad";
   return (
     <div className="flex items-center gap-2">
       <span className="w-7 text-right font-semibold tabular-nums">{value}</span>
@@ -111,10 +111,10 @@ async function DealsBody({ viewer, actor, params, quarter }: { readonly viewer: 
           {deals.map((d) => (
             <tr key={d.id}>
               <Td className="font-medium">{d.account}</Td>
-              <Td className={alignmentFlag(d.presales_stage, d.forecast) ? "whitespace-nowrap font-medium text-amber-700" : "whitespace-nowrap"}>
+              <Td className={alignmentFlag(d.presales_stage, d.forecast) ? "whitespace-nowrap font-medium text-warn" : "whitespace-nowrap"}>
                 {LABEL[d.presales_stage]}
               </Td>
-              <Td className={alignmentFlag(d.presales_stage, d.forecast) ? "whitespace-nowrap font-medium text-amber-700" : "whitespace-nowrap"}>
+              <Td className={alignmentFlag(d.presales_stage, d.forecast) ? "whitespace-nowrap font-medium text-warn" : "whitespace-nowrap"}>
                 {LABEL[d.forecast]}
               </Td>
               <Td className="tabular-nums">{usd.format(d.acv_usd)}</Td>
@@ -125,7 +125,7 @@ async function DealsBody({ viewer, actor, params, quarter }: { readonly viewer: 
                 {d.next_step}
                 <div className="text-muted-foreground text-xs">updated {d.days_since_update} days ago</div>
               </Td>
-              <Td className="text-amber-700">{d.flags.join("; ")}</Td>
+              <Td className="text-warn">{d.flags.join("; ")}</Td>
             </tr>
           ))}
         </Table>

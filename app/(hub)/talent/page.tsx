@@ -117,7 +117,7 @@ export default async function TalentPage({ searchParams }: { readonly searchPara
                 </Td>
                 <Td>{c.focus}</Td>
                 <Td>{c.stage}</Td>
-                <Td className={c.days_since_contact > 30 ? "whitespace-nowrap text-amber-700" : "whitespace-nowrap text-muted-foreground"}>
+                <Td className={c.days_since_contact > 30 ? "whitespace-nowrap text-warn" : "whitespace-nowrap text-muted-foreground"}>
                   {c.days_since_contact} days ago
                 </Td>
                 <Td>{c.notes}</Td>

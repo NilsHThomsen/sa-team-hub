@@ -133,7 +133,7 @@ async function SkillsBody({ viewer, actor, params }: { readonly viewer: Viewer; 
                 {g.min_level ? <div className="font-normal text-muted-foreground text-xs">{g.min_level} or above</div> : null}
               </Td>
               <Td className="text-muted-foreground">{g.reason}</Td>
-              <Td className={cn("whitespace-nowrap tabular-nums", g.short_by > 0 && "font-medium text-red-600")}>
+              <Td className={cn("whitespace-nowrap tabular-nums", g.short_by > 0 && "font-medium text-bad")}>
                 {g.have} / {g.needed}
               </Td>
               <Td>{g.qualified.join(", ") || (viewer.role === "manager" ? "Nobody yet" : "")}</Td>

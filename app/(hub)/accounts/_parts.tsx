@@ -34,7 +34,7 @@ export function UsageSparkline({ values }: { readonly values: readonly number[] 
 
 const STATUS: Record<AdoptionStatus, { mark: string; label: string; className: string }> = {
   using: { mark: "●", label: "Using", className: "text-foreground" },
-  piloting: { mark: "◐", label: "Piloting", className: "text-amber-700" },
+  piloting: { mark: "◐", label: "Piloting", className: "text-warn" },
   not_using: { mark: "○", label: "Not using", className: "text-muted-foreground/60" },
 };
 

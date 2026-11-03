@@ -8,7 +8,7 @@ export function dealCount(card: Pick<Battlecard, "open_deals" | "won_deals">): s
 
 export function Points({ title, items, tone }: { readonly title: string; readonly items: readonly string[]; readonly tone?: "them" | "us" }) {
   return (
-    <div className={tone === "us" ? "space-y-2 rounded-xl border border-emerald-300/60 bg-card p-4" : "space-y-2 rounded-xl border bg-card p-4"}>
+    <div className={tone === "us" ? "space-y-2 rounded-xl border border-good/40 bg-card p-4" : "space-y-2 rounded-xl border bg-card p-4"}>
       <h2 className="font-medium">{title}</h2>
       <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground text-sm leading-relaxed">
         {items.map((item) => (

@@ -30,21 +30,21 @@ function Segments({ level }: { readonly level: number }) {
 function StatusIcon({ status }: { readonly status: Status }) {
   if (status === "complete")
     return (
-      <svg aria-label="Complete" className="inline size-4 text-emerald-600" viewBox="0 0 16 16">
+      <svg aria-label="Complete" className="inline size-4 text-good" viewBox="0 0 16 16">
         <circle cx="8" cy="8" fill="currentColor" r="8" />
         <path d="M4.5 8.2l2.2 2.2 4.8-4.8" fill="none" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
       </svg>
     );
   if (status === "in_progress")
     return (
-      <svg aria-label="In progress" className="inline size-4 text-amber-500" viewBox="0 0 16 16">
+      <svg aria-label="In progress" className="inline size-4 text-warn" viewBox="0 0 16 16">
         <circle cx="8" cy="8" fill="none" r="6.5" stroke="currentColor" strokeWidth="2" />
         <path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor" />
       </svg>
     );
   // Next focus: the same ring as In progress, not yet filled.
   return (
-    <svg aria-label={STATUS_LABEL[status]} className={cn("inline size-4", status === "next_focus" ? "text-amber-500" : "text-slate-300 dark:text-slate-600")} viewBox="0 0 16 16">
+    <svg aria-label={STATUS_LABEL[status]} className={cn("inline size-4", status === "next_focus" ? "text-warn" : "text-slate-300 dark:text-slate-600")} viewBox="0 0 16 16">
       <circle cx="8" cy="8" fill="none" r="6.5" stroke="currentColor" strokeWidth="2" />
     </svg>
   );

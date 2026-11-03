@@ -113,7 +113,7 @@ async function HomeBody({ viewer, actor, params }: { readonly viewer: Viewer; re
           <ul className="divide-y rounded-xl border bg-card text-sm">
             {actions.slice(0, 8).map((a, i) => (
               <li className="flex gap-3 p-3" key={`${a.kind}-${a.title}-${i}`}>
-                <span className={a.urgent ? "mt-1.5 size-2 shrink-0 rounded-full bg-amber-500" : "mt-1.5 size-2 shrink-0 rounded-full bg-muted-foreground/30"} />
+                <span className={a.urgent ? "mt-1.5 size-2 shrink-0 rounded-full bg-warn" : "mt-1.5 size-2 shrink-0 rounded-full bg-muted-foreground/30"} />
                 <div className="min-w-0">
                   <Link className="font-medium underline-offset-2 hover:underline" href={to(a.href)}>
                     {a.title}

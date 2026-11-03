@@ -37,7 +37,7 @@ export default async function SettingsPage({ searchParams }: { readonly searchPa
           </fieldset>
           <div className="flex items-center gap-3">
             <Button type="submit">Save</Button>
-            {params.saved ? <span className="text-emerald-600 text-sm">Saved. New chats will use {modelLabel(setting.model)}.</span> : null}
+            {params.saved ? <span className="text-good text-sm">Saved. New chats will use {modelLabel(setting.model)}.</span> : null}
             {!params.saved && setting.updated_by_name ? (
               <span className="text-muted-foreground text-xs">
                 Last changed by {setting.updated_by_name}, {setting.updated_at}
@@ -68,8 +68,8 @@ export default async function SettingsPage({ searchParams }: { readonly searchPa
             <Button type="submit" variant="outline">
               Save
             </Button>
-            {params.budgetSaved ? <span className="text-emerald-600 text-sm">Saved.</span> : null}
-            {params.budgetError ? <span className="text-red-600 text-sm">{String(params.budgetError)}</span> : null}
+            {params.budgetSaved ? <span className="text-good text-sm">Saved.</span> : null}
+            {params.budgetError ? <span className="text-bad text-sm">{String(params.budgetError)}</span> : null}
           </div>
         </form>
       </Section>
@@ -81,8 +81,8 @@ export default async function SettingsPage({ searchParams }: { readonly searchPa
             the same access as the web app. In any shared channel everyone, managers included, gets SA-level access only, so talent data never
             appears where others can read it.
           </p>
-          {params.slackError ? <p className="text-red-600 text-sm">{String(params.slackError)}</p> : null}
-          {params.slackSaved ? <p className="text-emerald-600 text-sm">Saved.</p> : null}
+          {params.slackError ? <p className="text-bad text-sm">{String(params.slackError)}</p> : null}
+          {params.slackSaved ? <p className="text-good text-sm">Saved.</p> : null}
           <Table head={["Person", "Role", "Slack member ID"]}>
             {links.map((p) => (
               <tr key={p.id}>

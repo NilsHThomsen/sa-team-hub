@@ -38,9 +38,9 @@ export function Stat({
       <div
         className={cn(
           "mt-1 font-semibold text-2xl tabular-nums",
-          tone === "good" && "text-emerald-600",
-          tone === "warn" && "text-amber-600",
-          tone === "bad" && "text-red-600",
+          tone === "good" && "text-good",
+          tone === "warn" && "text-warn",
+          tone === "bad" && "text-bad",
         )}
       >
         {value}
@@ -56,29 +56,29 @@ export function Stat({
 }
 
 const PILL: Record<string, string> = {
-  high: "bg-red-100 text-red-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-emerald-100 text-emerald-800",
-  on_track: "bg-emerald-100 text-emerald-800",
-  at_risk: "bg-amber-100 text-amber-800",
-  overdue: "bg-red-100 text-red-800",
-  done: "bg-slate-100 text-slate-700",
-  complete: "bg-emerald-100 text-emerald-800",
-  in_progress: "bg-amber-100 text-amber-800",
-  not_started: "bg-slate-100 text-slate-600",
-  next_focus: "bg-white text-amber-700 ring-1 ring-amber-400",
-  pending_approval: "bg-amber-100 text-amber-800",
-  approved: "bg-emerald-100 text-emerald-800",
-  rejected: "bg-slate-100 text-slate-600",
-  pending: "bg-amber-100 text-amber-800",
-  accepted: "bg-emerald-100 text-emerald-800",
-  declined: "bg-slate-100 text-slate-600",
-  expired: "bg-slate-100 text-slate-600",
+  high: "bg-bad-soft text-bad",
+  medium: "bg-warn-soft text-warn",
+  low: "bg-good-soft text-good",
+  on_track: "bg-good-soft text-good",
+  at_risk: "bg-warn-soft text-warn",
+  overdue: "bg-bad-soft text-bad",
+  done: "bg-muted text-foreground",
+  complete: "bg-good-soft text-good",
+  in_progress: "bg-warn-soft text-warn",
+  not_started: "bg-muted text-muted-foreground",
+  next_focus: "bg-card text-warn ring-1 ring-warn/60",
+  pending_approval: "bg-warn-soft text-warn",
+  approved: "bg-good-soft text-good",
+  rejected: "bg-muted text-muted-foreground",
+  pending: "bg-warn-soft text-warn",
+  accepted: "bg-good-soft text-good",
+  declined: "bg-muted text-muted-foreground",
+  expired: "bg-muted text-muted-foreground",
 };
 
 export function Pill({ value, label }: { readonly value: string; readonly label?: string }) {
   return (
-    <span className={cn("inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-medium text-xs", PILL[value] ?? "bg-slate-100 text-slate-700")}>
+    <span className={cn("inline-block whitespace-nowrap rounded-full px-2 py-0.5 font-medium text-xs", PILL[value] ?? "bg-muted text-foreground")}>
       {label ?? value.replaceAll("_", " ")}
     </span>
   );

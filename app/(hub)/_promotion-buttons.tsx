@@ -20,7 +20,7 @@ export function PromotionButtons({ id }: { readonly id: number }) {
       <button className="rounded-md border px-2.5 py-1 text-xs disabled:opacity-50" disabled={pending} onClick={() => answer(false)} type="button">
         Decline
       </button>
-      {error ? <span className="text-red-600 text-xs">{error}</span> : null}
+      {error ? <span className="text-bad text-xs">{error}</span> : null}
     </div>
   );
 }
