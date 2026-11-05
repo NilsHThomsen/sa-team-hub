@@ -979,7 +979,8 @@ export async function listBattlecards(): Promise<Battlecard[]> {
            (select count(*)::int from deals d where d.competitor = b.id and d.stage < 5) as open_deals,
            (select count(*)::int from deals d where d.competitor = b.id and d.forecast = 'closed') as won_deals
     from battlecards b join people p on p.id = b.owner_id
-    order by b.competitor`;
+    -- AWS, Netlify, Cloudflare first (the order we meet them), then any others by name.
+    order by array_position(array['aws', 'netlify', 'cloudflare'], b.id) nulls last, b.competitor`;
 }
 
 /** Finds a battlecard by id or by (part of) the competitor's name, e.g. "amplify". */

@@ -92,7 +92,7 @@
     --ring: oklch(0.556 0 0);
     --good: oklch(0.845 0.143 164.978);
     --good-soft: oklch(0.262 0.051 172.552);
-    --warn: oklch(0.879 0.169 91.605);
+    --warn: oklch(0.837 0.128 66.29); /* orange-300: orange like light mode, 8.8:1+ on dark surfaces */
     --warn-soft: oklch(0.279 0.077 45.635);
     --bad: oklch(0.808 0.114 19.571);
     --bad-soft: oklch(0.258 0.092 26.042);
