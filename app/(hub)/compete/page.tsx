@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cachedBattlecards } from "@/lib/cached";
 import { PageHeader, Section, Stat } from "../_ui";
 import { dealCount } from "./_parts";
+import { WinLoseMatrix } from "./_matrix";
 
 // Like the Library, nothing here depends on who is looking, so the page and its data
 // are part of the prerendered shell served from Vercel's CDN; proxy.ts checks the
@@ -18,6 +19,9 @@ export default async function CompetePage() {
         subtitle="Battlecards for the competitors we meet most. The same for everyone, so this page is served from Vercel's CDN."
         title="Compete"
       />
+      <Section note="Sources are on each battlecard" title="How we win and where we're weak">
+        <WinLoseMatrix />
+      </Section>
       <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Battlecards" value={cards.length} />
         <Stat label="Open deals with a competitor" value={open} />
