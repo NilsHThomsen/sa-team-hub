@@ -87,7 +87,7 @@ const certs: Record<string, [string, Status, number | null, number | null][]> = 
   "ravi-menon": [["AWS Solutions Architect Professional", "complete", -500, null]],
   "hannah-kim": [["AWS Solutions Architect Associate", "next_focus", null, 90]],
   "jack-wilson": [["Google Cloud Professional Architect", "in_progress", null, 30]],
-  "mei-chen": [["Azure Solutions Architect Expert", "not_started", null, 60]],
+  "mei-chen": [["Azure Solutions Architect Expert", "next_focus", null, 60]],
   "daniel-okafor": [["AWS Solutions Architect Professional", "complete", -250, null], ["Azure Solutions Architect Expert", "complete", -90, null]],
 };
 
